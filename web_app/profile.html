@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Profile - Healytica Record</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/profile.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Load Supabase FIRST -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="dashboard-page">
+    
+    <!-- Loading Spinner -->
+    <div id="loader" class="loader">
+        <div class="spinner"></div>
+        <div class="loading-text">Loading your profile...</div>
+    </div>
+
+    <!-- Sidebar Navigation -->
+    <div class="sidebar" id="sidebar">
+        <!-- User Info -->
+        <div class="user-info">
+            <div class="user-avatar" id="userAvatar">
+                <!-- Initials will be added by JavaScript -->
+            </div>
+            <div class="user-details">
+                <div class="user-name" id="userName">Loading...</div>
+                <div class="user-status">
+                    <span class="status-dot"></span>
+                    <span>Online</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Logout Button -->
+        <button class="logout-btn" id="logoutBtn">
+            <i class="fas fa-sign-out-alt"></i>
+            <span>Logout</span>
+        </button>
+
+        <!-- Navigation Menu -->
+        <nav class="main-nav">
+            <div class="nav-section">
+                <div class="nav-header">📋 Navigation</div>
+                <a href="dashboard.html" class="nav-link">
+                    <i class="fas fa-home"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="profile.html" class="nav-link active">
+                    <i class="fas fa-user"></i>
+                    <span>My Profile</span>
+                </a>
+                <a href="medications.html" class="nav-link">
+                    <i class="fas fa-pills"></i>
+                    <span>Medications</span>
+                </a>
+                <a href="lab_results.html" class="nav-link">
+                    <i class="fas fa-flask"></i>
+                    <span>Lab Results</span>
+                </a>
+                <a href="vital_signs.html" class="nav-link">
+                    <i class="fas fa-heartbeat"></i>
+                    <span>Vital Signs</span>
+                </a>
+                <a href="appointments.html" class="nav-link">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>Appointments</span>
+                </a>
+                <a href="symptoms.html" class="nav-link">
+                    <i class="fas fa-thermometer"></i>
+                    <span>Symptoms Tracker</span>
+                </a>
+                <a href="analytics.html" class="nav-link">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>Health Analytics</span>
+                </a>
+                <a href="settings.html" class="nav-link">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </a>
+            </div>
+        </nav>
+
+        <!-- Quick Stats -->
+        <div class="quick-stats">
+            <div class="stat-item">
+                <div class="stat-value" id="profileComplete">--%</div>
+                <div class="stat-label">Profile Complete</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="lastUpdated">--</div>
+                <div class="stat-label">Last Updated</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile Menu Toggle -->
+    <button class="menu-toggle" id="menuToggle">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Header -->
+        <header class="main-header">
+            <div class="header-left">
+                <h1>👤 My Personal Profile</h1>
+                <p class="header-subtitle">Manage your personal and medical information</p>
+            </div>
+            <div class="header-right">
+                <button class="action-btn" id="printProfileBtn">
+                    <i class="fas fa-print"></i>
+                    <span>Print Profile</span>
+                </button>
+                <button class="action-btn secondary" id="emergencyCardBtn">
+                    <i class="fas fa-id-card"></i>
+                    <span>Emergency Card</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Profile Content -->
+        <div class="profile-content">
+            <!-- Profile Tabs -->
+            <div class="profile-tabs" id="profileTabs">
+                <button class="profile-tab active" data-tab="personal">Personal Information</button>
+                <button class="profile-tab" data-tab="medical">Medical Information</button>
+                <button class="profile-tab" data-tab="emergency">Emergency Contacts</button>
+                <button class="profile-tab" data-tab="documents">Health Documents</button>
+            </div>
+
+            <!-- Profile Forms -->
+            <div class="profile-forms">
+                
+                <!-- Personal Information Tab -->
+                <form id="personalForm" class="profile-form active">
+                    <div class="form-section">
+                        <h3><i class="fas fa-user-circle"></i> Basic Information</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="fullName">Full Name <span class="required">*</span></label>
+                                <input type="text" id="fullName" name="fullName" placeholder="Enter your full name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="email">Email Address</label>
+                                <input type="email" id="email" name="email" placeholder="your.email@example.com">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="phone">Phone Number</label>
+                                <input type="tel" id="phone" name="phone" placeholder="(123) 456-7890">
+                            </div>
+                            <div class="form-group">
+                                <label for="gender">Gender</label>
+                                <select id="gender" name="gender">
+                                    <option value="">Select Gender</option>
+                                    <option value="Male">Male</option>
+                                    <option value="Female">Female</option>
+                                    <option value="Other">Other</option>
+                                    <option value="Prefer not to say">Prefer not to say</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="dob">Date of Birth</label>
+                                <input type="date" id="dob" name="dob" max="2024-12-31">
+                            </div>
+                            <div class="form-group">
+                                <label for="bloodType">Blood Type</label>
+                                <select id="bloodType" name="bloodType">
+                                    <option value="">Select Blood Type</option>
+                                    <option value="A+">A+</option>
+                                    <option value="A-">A-</option>
+                                    <option value="B+">B+</option>
+                                    <option value="B-">B-</option>
+                                    <option value="AB+">AB+</option>
+                                    <option value="AB-">AB-</option>
+                                    <option value="O+">O+</option>
+                                    <option value="O-">O-</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h3><i class="fas fa-home"></i> Address Information</h3>
+                        <div class="form-group">
+                            <label for="address">Home Address</label>
+                            <textarea id="address" name="address" rows="3" placeholder="Enter your complete address"></textarea>
+                        </div>
+                    </div>
+                </form>
+
+                <!-- Medical Information Tab -->
+                <form id="medicalForm" class="profile-form">
+                    <div class="form-section">
+                        <h3><i class="fas fa-allergies"></i> Allergies</h3>
+                        <div class="form-group">
+                            <label for="allergies">List of Allergies</label>
+                            <textarea id="allergies" name="allergies" rows="4"
+                                      placeholder="List any drug allergies, food allergies, or other reactions...
+Example:
+- Penicillin (rash)
+- Peanuts (anaphylaxis)
+- Latex (itching)"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h3><i class="fas fa-history"></i> Medical History</h3>
+                        <div class="form-group">
+                            <label for="medicalHistory">Medical Conditions & Surgeries</label>
+                            <textarea id="medicalHistory" name="medicalHistory" rows="6"
+                                      placeholder="Previous conditions, surgeries, hospitalizations..."></textarea>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h3><i class="fas fa-procedures"></i> Current Conditions</h3>
+                        <div class="form-group">
+                            <div class="conditions-list" id="conditionsList"></div>
+                            <div class="form-row">
+                                <input type="text" id="newCondition" placeholder="Add a medical condition">
+                                <button type="button" class="btn-small" id="addConditionBtn">
+                                    <i class="fas fa-plus"></i> Add
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+
+                <!-- Emergency Contacts Tab -->
+                <form id="emergencyForm" class="profile-form">
+                    <div class="form-section">
+                        <h3><i class="fas fa-phone-alt"></i> Primary Emergency Contact</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="emergencyName">Name <span class="required">*</span></label>
+                                <input type="text" id="emergencyName" name="emergencyName" placeholder="Full name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="emergencyRelation">Relationship</label>
+                                <select id="emergencyRelation" name="emergencyRelation">
+                                    <option value="">Select Relationship</option>
+                                    <option value="Spouse">Spouse</option>
+                                    <option value="Parent">Parent</option>
+                                    <option value="Child">Child</option>
+                                    <option value="Sibling">Sibling</option>
+                                    <option value="Friend">Friend</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="emergencyPhone">Phone Number <span class="required">*</span></label>
+                                <input type="tel" id="emergencyPhone" name="emergencyPhone" placeholder="(123) 456-7890" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="emergencyEmail">Email</label>
+                                <input type="email" id="emergencyEmail" name="emergencyEmail" placeholder="contact@example.com">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="emergencyNotes">Notes</label>
+                            <textarea id="emergencyNotes" name="emergencyNotes" rows="2"
+                                      placeholder="Special instructions or notes for emergency responders"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h3><i class="fas fa-users"></i> Additional Contacts</h3>
+                        <div class="additional-contacts" id="additionalContacts"></div>
+                        <button type="button" class="btn-outline" id="addContactBtn">
+                            <i class="fas fa-user-plus"></i> Add Another Contact
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Health Documents Tab -->
+                <form id="documentsForm" class="profile-form">
+                    <div class="form-section">
+                        <h3><i class="fas fa-file-medical"></i> Health Documents</h3>
+                        <p class="section-description">
+                            Upload and manage your important health documents. 
+                            Keep them secure and accessible when needed.
+                        </p>
+
+                        <div class="documents-grid" id="documentsGrid">
+                            <div class="empty-state" style="grid-column:1/-1;text-align:center;padding:40px;">
+                                <i class="fas fa-file-medical" style="font-size:3em;color:#ccc;margin-bottom:15px;"></i>
+                                <p style="color:#666;margin:0;">No documents uploaded yet</p>
+                            </div>
+                        </div>
+
+                        <div class="upload-section">
+                            <div class="upload-area" id="uploadArea">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                <div class="upload-text">
+                                    <h4>Upload Health Documents</h4>
+                                    <p>Drag & drop files or click to browse</p>
+                                    <p class="upload-types">Supports: PDF, JPG, PNG, DOC (Max 10MB)</p>
+                                </div>
+                                <input type="file" id="documentUpload" multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" style="display:none;">
+                            </div>
+                        </div>
+                    </div>
+                </form>
+
+                <!-- Form Actions -->
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" id="cancelBtn">Cancel</button>
+                    <button type="submit" class="btn-primary" id="saveProfileBtn">
+                        <i class="fas fa-save"></i> Save Profile
+                    </button>
+                </div>
+
+                <!-- Profile Summary -->
+                <div class="profile-summary">
+                    <div class="summary-header">
+                        <h3><i class="fas fa-chart-pie"></i> Profile Summary</h3>
+                    </div>
+                    <div class="summary-grid">
+                        <div class="summary-item">
+                            <div class="summary-label">Profile Completion</div>
+                            <div class="summary-progress">
+                                <div class="progress-bar">
+                                    <div class="progress-fill" id="completionBar" style="width:0%"></div>
+                                </div>
+                                <div class="progress-text" id="completionText">0%</div>
+                            </div>
+                        </div>
+                        <div class="summary-item">
+                            <div class="summary-label">Last Updated</div>
+                            <div class="summary-value" id="lastUpdateTime">Never</div>
+                        </div>
+                        <div class="summary-item">
+                            <div class="summary-label">Emergency Info</div>
+                            <div class="summary-value" id="emergencyInfoStatus">Not Set</div>
+                        </div>
+                        <div class="summary-item">
+                            <div class="summary-label">Documents</div>
+                            <div class="summary-value" id="documentsCount">0 files</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="quick-actions-section">
+                    <h3><i class="fas fa-bolt"></i> Quick Actions</h3>
+                    <div class="quick-action-buttons">
+                        <button class="quick-action-btn" id="shareProfileBtn">
+                            <i class="fas fa-share-alt"></i>
+                            <span>Share with Provider</span>
+                        </button>
+                        <button class="quick-action-btn" id="exportProfileBtn">
+                            <i class="fas fa-file-export"></i>
+                            <span>Export Profile</span>
+                        </button>
+                        <button class="quick-action-btn" id="qrCodeBtn">
+                            <i class="fas fa-qrcode"></i>
+                            <span>Generate QR Code</span>
+                        </button>
+                        <button class="quick-action-btn" id="backupProfileBtn">
+                            <i class="fas fa-database"></i>
+                            <span>Backup Data</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <footer class="main-footer">
+                <div class="footer-content">
+                    <div class="footer-logo">
+                        <span class="logo-symbol">H</span>
+                        <span class="logo-text">Healytica Record</span>
+                    </div>
+                    <div class="footer-links">
+                        <a href="#" class="footer-link">Privacy Policy</a>
+                        <a href="#" class="footer-link">Terms of Service</a>
+                        <a href="#" class="footer-link">Help Center</a>
+                    </div>
+                    <div class="footer-copyright">
+                        © 2024 Healytica Record. Secure • Private • Yours.
+                    </div>
+                </div>
+            </footer>
+        </div>
+
+        <!-- Message Container -->
+        <div id="messageContainer" class="message-container"></div>
+    </div>
+
+    <!-- Scripts - CORRECT ORDER -->
+    <script src="js/supabase.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/profile.js"></script>
+
+    <!-- FIX: Minimal inline script — auth check + sidebar update only.
+         All tab switching, listeners, loader hiding, and quick actions
+         are handled by profile.js to avoid duplicate bindings. -->
+    <script>
+        document.addEventListener('DOMContentLoaded', async function() {
+            console.log('Profile page loading...');
+
+            // NOTE: Loader is NOT hidden here — profile.js hideLoading()
+            // handles this after loadProfile() resolves.
+
+            try {
+                if (typeof supabaseService === 'undefined') {
+                    console.error('supabaseService not loaded');
+                    return;
+                }
+
+                const user = await supabaseService.getCurrentUser();
+                if (!user) {
+                    console.log('No user found, redirecting...');
+                    window.location.href = 'index.html';
+                    return;
+                }
+
+                console.log('User authenticated:', user.email);
+
+                // Update sidebar user info
+                const userName   = document.getElementById('userName');
+                const userAvatar = document.getElementById('userAvatar');
+                if (userName && user.email) {
+                    const name = user.email.split('@')[0];
+                    userName.textContent = name.charAt(0).toUpperCase() + name.slice(1);
+                }
+                if (userAvatar && user.email) {
+                    userAvatar.textContent = user.email.split('@')[0].substring(0, 2).toUpperCase();
+                }
+
+                // Sidebar logout
+                const logoutBtn = document.getElementById('logoutBtn');
+                if (logoutBtn) {
+                    logoutBtn.addEventListener('click', async function() {
+                        if (confirm('Are you sure you want to logout?')) {
+                            try {
+                                await supabaseService.signOut();
+                                window.location.href = 'index.html';
+                            } catch (error) {
+                                console.error('Logout error:', error);
+                            }
+                        }
+                    });
+                }
+
+                // Mobile menu
+                const menuToggle = document.getElementById('menuToggle');
+                if (menuToggle) {
+                    menuToggle.addEventListener('click', function() {
+                        const sidebar = document.getElementById('sidebar');
+                        if (sidebar) sidebar.classList.toggle('mobile-open');
+                    });
+                }
+
+                // loadProfile() in profile.js handles everything else:
+                // tabs, form population, document loading, quick actions, save
+                if (typeof loadProfile === 'function') {
+                    await loadProfile(user);
+                }
+
+            } catch (error) {
+                console.error('Profile initialization error:', error);
+            }
+        });
+    </script>
+</body>
+</html>

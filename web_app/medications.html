@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medications - Healytica Record</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/medications.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="dashboard-page">
+    
+    <div id="loader" class="loader">
+        <div class="spinner"></div>
+        <div class="loading-text">Loading your medications...</div>
+    </div>
+
+    <div class="sidebar" id="sidebar">
+        <div class="user-info">
+            <div class="user-avatar" id="userAvatar"></div>
+            <div class="user-details">
+                <div class="user-name" id="userName">Loading...</div>
+                <div class="user-status"><span class="status-dot"></span><span>Online</span></div>
+            </div>
+        </div>
+
+        <button class="logout-btn" id="logoutBtn">
+            <i class="fas fa-sign-out-alt"></i><span>Logout</span>
+        </button>
+
+        <nav class="main-nav">
+            <div class="nav-section">
+                <div class="nav-header">📋 Navigation</div>
+                <a href="dashboard.html"  class="nav-link"><i class="fas fa-home"></i><span>Dashboard</span></a>
+                <a href="profile.html"    class="nav-link"><i class="fas fa-user"></i><span>My Profile</span></a>
+                <a href="medications.html" class="nav-link active"><i class="fas fa-pills"></i><span>Medications</span></a>
+                <a href="lab_results.html" class="nav-link"><i class="fas fa-flask"></i><span>Lab Results</span></a>
+                <a href="vital_signs.html" class="nav-link"><i class="fas fa-heartbeat"></i><span>Vital Signs</span></a>
+                <a href="appointments.html" class="nav-link"><i class="fas fa-calendar-alt"></i><span>Appointments</span></a>
+                <a href="symptoms.html"   class="nav-link"><i class="fas fa-thermometer"></i><span>Symptoms Tracker</span></a>
+                <a href="analytics.html"  class="nav-link"><i class="fas fa-chart-bar"></i><span>Health Analytics</span></a>
+                <a href="settings.html"   class="nav-link"><i class="fas fa-cog"></i><span>Settings</span></a>
+            </div>
+        </nav>
+
+        <div class="quick-stats">
+            <div class="stat-item"><div class="stat-value" id="totalMedsCount">0</div><div class="stat-label">Total Meds</div></div>
+            <div class="stat-item"><div class="stat-value" id="activeMedsSideCount">0</div><div class="stat-label">Active</div></div>
+            <div class="stat-item"><div class="stat-value" id="refillSoonCount">0</div><div class="stat-label">Need Refill</div></div>
+        </div>
+    </div>
+
+    <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
+
+    <div class="main-content">
+        <header class="main-header">
+            <div class="header-left">
+                <h1>💊 Medication Management</h1>
+                <p class="header-subtitle">Track, manage, and monitor your medications</p>
+            </div>
+            <div class="header-right">
+                <div class="date-display" id="currentDate">Loading...</div>
+                <button class="refresh-btn" id="refreshBtn">
+                    <i class="fas fa-sync-alt"></i><span>Refresh</span>
+                </button>
+            </div>
+        </header>
+
+        <div class="medications-content">
+            <!-- Tabs -->
+            <div class="medication-tabs">
+                <button class="medication-tab active" data-tab="add-medication">
+                    <i class="fas fa-plus-circle"></i><span>Add Medication</span>
+                </button>
+                <button class="medication-tab" data-tab="my-medications">
+                    <i class="fas fa-list"></i><span>My Medications</span>
+                </button>
+                <button class="medication-tab" data-tab="schedule">
+                    <i class="fas fa-calendar"></i><span>Schedule</span>
+                </button>
+                <button class="medication-tab" data-tab="refill-tracker">
+                    <i class="fas fa-sync"></i><span>Refill Tracker</span>
+                </button>
+                <button class="medication-tab" data-tab="trends">
+                    <i class="fas fa-chart-line"></i><span>Trends & Analysis</span>
+                </button>
+            </div>
+
+            <div class="tab-content-container">
+
+                <!-- Tab 1: Add Medication -->
+                <div class="tab-content active" id="add-medication-content">
+                    <div class="section-header"><h2>➕ Add New Medication</h2></div>
+                    <div class="add-medication-form">
+
+                        <div class="form-section">
+                            <h3>🔍 Select or Search Medication</h3>
+                            <div class="form-row">
+                                <div class="form-group full-width" style="position:relative;">
+                                    <label for="medicationSearch"><i class="fas fa-search"></i> Search medications...</label>
+                                    <input type="text" id="medicationSearch"
+                                           placeholder="Type to search (e.g., Metformin, Aspirin, Atorvastatin)">
+                                    <div class="search-suggestions" id="searchSuggestions"></div>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="medicationCategory">Browse by Category</label>
+                                    <select id="medicationCategory" class="category-select">
+                                        <option value="all">All Categories</option>
+                                        <option value="cardiovascular">❤️ Cardiovascular</option>
+                                        <option value="diabetes">🩸 Diabetes</option>
+                                        <option value="pain">🩺 Pain Management</option>
+                                        <option value="antibiotics">🦠 Antibiotics</option>
+                                        <option value="mental">🧠 Mental Health</option>
+                                        <option value="respiratory">🫁 Respiratory</option>
+                                        <option value="gastro">💊 Gastrointestinal</option>
+                                        <option value="vitamins">🧴 Vitamins & Supplements</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="medicationName">Medication Name *</label>
+                                    <select id="medicationName" class="medication-select">
+                                        <option value="">Select a medication...</option>
+                                    </select>
+                                    <div class="form-hint">Or enter custom name below</div>
+                                </div>
+                            </div>
+                            <!-- FIX: customMedicationContainer id added so show/hide works -->
+                            <div class="form-row" id="customMedicationContainer" style="display:none;">
+                                <div class="form-group full-width">
+                                    <label for="customMedicationName">Custom Medication Name</label>
+                                    <input type="text" id="customMedicationName"
+                                           placeholder="Enter medication name if not in list">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-section">
+                            <h3>📋 Medication Details</h3>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="dosage">Dosage *</label>
+                                    <input type="text" id="dosage" placeholder="e.g., 500mg, 10 units, 0.5ml" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="frequency">Frequency *</label>
+                                    <select id="frequency" required>
+                                        <option value="">Select frequency</option>
+                                        <option value="Once daily">Once daily</option>
+                                        <option value="Twice daily">Twice daily</option>
+                                        <option value="Three times daily">Three times daily</option>
+                                        <option value="Four times daily">Four times daily</option>
+                                        <option value="Once weekly">Once weekly</option>
+                                        <option value="Twice weekly">Twice weekly</option>
+                                        <option value="As needed">As needed</option>
+                                        <option value="Before meals">Before meals</option>
+                                        <option value="After meals">After meals</option>
+                                        <option value="At bedtime">At bedtime</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="medicationType">Medication Type</label>
+                                    <select id="medicationType">
+                                        <option value="Tablet">Tablet</option>
+                                        <option value="Capsule">Capsule</option>
+                                        <option value="Liquid">Liquid</option>
+                                        <option value="Injection">Injection</option>
+                                        <option value="Inhaler">Inhaler</option>
+                                        <option value="Topical">Topical</option>
+                                        <option value="Cream/Ointment">Cream/Ointment</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="administration">Administration</label>
+                                    <select id="administration">
+                                        <option value="Oral">Oral</option>
+                                        <option value="Sublingual">Sublingual</option>
+                                        <option value="Topical">Topical</option>
+                                        <option value="Inhalation">Inhalation</option>
+                                        <option value="Injection">Injection</option>
+                                        <option value="Nasal">Nasal</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="quantityPerDose">Quantity per dose</label>
+                                    <input type="number" id="quantityPerDose" min="1" value="1">
+                                    <div class="form-hint">Number of pills/sprays/etc. per dose</div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="totalSupply">Total supply quantity</label>
+                                    <input type="number" id="totalSupply" min="1" value="30">
+                                    <div class="form-hint">Auto-calculated from frequency (editable)</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-section">
+                            <h3>📅 Prescription Details</h3>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="startDate">Start Date *</label>
+                                    <input type="date" id="startDate" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="endDate">End Date (optional)</label>
+                                    <input type="date" id="endDate">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="refillDate">Next Refill Date</label>
+                                    <input type="date" id="refillDate">
+                                </div>
+                                <div class="form-group">
+                                    <label for="prescribedBy">Prescribed By</label>
+                                    <input type="text" id="prescribedBy" placeholder="Dr. Smith, Clinic Name">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-section">
+                            <h3>📝 Additional Information</h3>
+                            <div class="form-row">
+                                <div class="form-group full-width">
+                                    <label for="specialInstructions">Special Instructions</label>
+                                    <textarea id="specialInstructions" rows="3"
+                                              placeholder="Take with food, avoid alcohol, shake well, etc."></textarea>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group full-width">
+                                    <label for="additionalNotes">Additional Notes (Optional)</label>
+                                    <textarea id="additionalNotes" rows="3"
+                                              placeholder="Side effects to watch for, storage instructions, etc."></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="button" class="btn-secondary" id="clearFormBtn">
+                                <i class="fas fa-times"></i> Clear Form
+                            </button>
+                            <button type="button" class="btn-primary" id="saveMedicationBtn">
+                                <i class="fas fa-save"></i> Save Medication
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 2: My Medications -->
+                <div class="tab-content" id="my-medications-content">
+                    <div class="section-header">
+                        <h2>📋 My Medications</h2>
+                        <div class="section-actions">
+                            <div class="medication-filters">
+                                <select id="medicationFilter">
+                                    <option value="all">All Medications</option>
+                                    <option value="active">Active Only</option>
+                                    <option value="completed">Completed</option>
+                                </select>
+                                <input type="text" id="medicationSearchList" placeholder="Search medications...">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="medication-stats">
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="fas fa-pills"></i></div>
+                            <div class="stat-info"><div class="stat-value" id="totalMedications">0</div><div class="stat-label">Total Medications</div></div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+                            <div class="stat-info"><div class="stat-value" id="activeMedications">0</div><div class="stat-label">Active Medications</div></div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="fas fa-sun"></i></div>
+                            <div class="stat-info"><div class="stat-value" id="dailyMedications">0</div><div class="stat-label">Daily Medications</div></div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="fas fa-clock"></i></div>
+                            <div class="stat-info"><div class="stat-value" id="asNeededMeds">0</div><div class="stat-label">As Needed</div></div>
+                        </div>
+                    </div>
+                    <div class="medications-list" id="medicationsList">
+                        <div class="empty-state">
+                            <i class="fas fa-pills"></i>
+                            <h3>No medications recorded yet</h3>
+                            <p>Add your first medication to get started!</p>
+                            <button class="btn-primary" id="addFirstMedicationBtn">
+                                <i class="fas fa-plus"></i> Add Medication
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 3: Schedule -->
+                <div class="tab-content" id="schedule-content">
+                    <div class="section-header">
+                        <h2>📅 Medication Schedule</h2>
+                        <div class="section-actions">
+                            <select id="scheduleView">
+                                <option value="weekly">Weekly View</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="schedule-container">
+                        <div class="schedule-view" id="weeklySchedule">
+                            <div class="schedule-header">
+                                <button class="schedule-nav" id="prevWeek"><i class="fas fa-chevron-left"></i></button>
+                                <div class="schedule-title" id="scheduleTitle">This Week's Schedule</div>
+                                <button class="schedule-nav" id="nextWeek"><i class="fas fa-chevron-right"></i></button>
+                            </div>
+                            <div class="schedule-grid" id="scheduleGrid"></div>
+                        </div>
+                        <div class="today-medications">
+                            <h3><i class="fas fa-calendar-day"></i> Today's Medications</h3>
+                            <div class="today-list" id="todayMedicationsList">
+                                <p style="color:#666;">Loading today's medications...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 4: Refill Tracker -->
+                <div class="tab-content" id="refill-tracker-content">
+                    <div class="section-header">
+                        <h2>🔄 Refill Tracker</h2>
+                    </div>
+                    <div class="refill-status">
+                        <div class="refill-alerts" id="refillAlerts"></div>
+                        <!-- FIX: refillList now rendered by JS -->
+                        <div class="refill-list" id="refillList"></div>
+                    </div>
+                    <div class="pharmacy-section">
+                        <h3><i class="fas fa-hospital"></i> Pharmacy Information</h3>
+                        <div class="pharmacy-form" id="pharmacyForm">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="pharmacyName">Pharmacy Name</label>
+                                    <input type="text" id="pharmacyName" placeholder="e.g., Walgreens, CVS">
+                                </div>
+                                <div class="form-group">
+                                    <label for="pharmacyPhone">Pharmacy Phone</label>
+                                    <input type="tel" id="pharmacyPhone" placeholder="(555) 123-4567">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group full-width">
+                                    <label for="pharmacyAddress">Pharmacy Address</label>
+                                    <textarea id="pharmacyAddress" rows="2" placeholder="Full address"></textarea>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="insuranceProvider">Insurance Provider</label>
+                                    <input type="text" id="insuranceProvider" placeholder="e.g., Blue Cross, Medicare">
+                                </div>
+                                <div class="form-group">
+                                    <label for="insuranceId">Insurance ID</label>
+                                    <input type="text" id="insuranceId" placeholder="Policy/Member number">
+                                </div>
+                            </div>
+                            <button class="btn-primary" id="savePharmacyBtn">
+                                <i class="fas fa-save"></i> Save Pharmacy Info
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 5: Trends & Analysis -->
+                <!-- FIX: all chart container IDs now match what medications.js renders into -->
+                <div class="tab-content" id="trends-content">
+                    <div class="section-header"><h2>📈 Medication Trends & Analysis</h2></div>
+
+                    <div class="trends-charts">
+                        <!-- FIX: id="timelineChart" matches renderTimelineChart() -->
+                        <div class="chart-container">
+                            <div class="chart-header">
+                                <h3>📅 Medication Timeline</h3>
+                                <select id="timelineFilter">
+                                    <option value="all">All Medications</option>
+                                    <option value="active">Active Only</option>
+                                    <option value="completed">Completed</option>
+                                </select>
+                            </div>
+                            <div id="timelineChart" style="min-height:200px;">
+                                <div class="chart-placeholder"><p>Loading timeline...</p></div>
+                            </div>
+                        </div>
+
+                        <!-- FIX: id="categoryChart" matches renderCategoryChart() -->
+                        <div class="chart-container">
+                            <div class="chart-header">
+                                <h3>💊 Medication Categories</h3>
+                            </div>
+                            <div id="categoryChart" style="min-height:200px;">
+                                <div class="chart-placeholder"><p>Loading chart...</p></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- FIX: id="trendInsights" matches renderTrendInsights() -->
+                    <div class="trends-insights">
+                        <div class="insight-card">
+                            <div class="insight-header">
+                                <i class="fas fa-chart-line"></i>
+                                <h3>Trend Analysis</h3>
+                            </div>
+                            <div class="insight-content" id="trendInsights">
+                                <p>Loading trend data...</p>
+                            </div>
+                        </div>
+
+                        <!-- FIX: id="keyInsights" + inner spans id="avgDuration","mostCommonCategory","activePercentage" -->
+                        <div class="insight-card">
+                            <div class="insight-header">
+                                <i class="fas fa-lightbulb"></i>
+                                <h3>Key Insights</h3>
+                            </div>
+                            <div class="insight-content" id="keyInsights">
+                                <div class="insight-item">
+                                    <i class="fas fa-check-circle success"></i>
+                                    <div class="insight-text">
+                                        <strong>Average Treatment Duration:</strong>
+                                        <span id="avgDuration">-- days</span>
+                                    </div>
+                                </div>
+                                <div class="insight-item">
+                                    <i class="fas fa-pills info"></i>
+                                    <div class="insight-text">
+                                        <strong>Most Common Type:</strong>
+                                        <span id="mostCommonCategory">--</span>
+                                    </div>
+                                </div>
+                                <div class="insight-item">
+                                    <i class="fas fa-percentage warning"></i>
+                                    <div class="insight-text">
+                                        <strong>Active Medications:</strong>
+                                        <span id="activePercentage">--%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div><!-- end tab-content-container -->
+        </div><!-- end medications-content -->
+
+        <footer class="main-footer">
+            <div class="footer-content">
+                <div class="footer-logo">
+                    <span class="logo-symbol">H</span>
+                    <span class="logo-text">Healytica Record</span>
+                </div>
+                <div class="footer-links">
+                    <a href="#" class="footer-link">Privacy Policy</a>
+                    <a href="#" class="footer-link">Terms of Service</a>
+                    <a href="#" class="footer-link">Help Center</a>
+                </div>
+                <div class="footer-copyright">© 2024 Healytica Record. Secure • Private • Yours.</div>
+            </div>
+        </footer>
+    </div>
+
+    <div id="messageContainer"></div>
+
+    <!-- FIX: removed app.js (doesn't exist, was breaking page load) -->
+    <script src="js/supabase.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/medications.js"></script>
+</body>
+</html>

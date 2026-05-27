@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Symptoms Tracker - Healytica Record</title>
+    <!-- FIX: Load style.css + dashboard.css for shared layout, then symptoms.css for page-specific styles -->
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/symptoms.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        /* FIX: Loader controlled by JS inline style only — no CSS conflict */
+        #loader { display: none; }
+
+        /* Message container position */
+        #messageContainer {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+        }
+
+        /* Severity badge colours (scoped here to avoid conflicts) */
+        .severity-badge.unknown    { background:#6c757d; color:white; }
+        .severity-badge.mild       { background:#d4edda; color:#155724; }
+        .severity-badge.moderate   { background:#fff3cd; color:#856404; }
+        .severity-badge.severe     { background:#f8d7da; color:#721c24; }
+        .severity-badge.very_severe{ background:#721c24; color:white; }
+
+        /* Chart canvas message helpers */
+        .chart-no-data {
+            color: #6c757d;
+            padding: 20px;
+            text-align: center;
+            font-size: 0.95em;
+        }
+        .chart-error {
+            color: #dc3545;
+            padding: 20px;
+            text-align: center;
+            font-size: 0.95em;
+        }
+
+        /* Slide-in animation for messages */
+        @keyframes slideInRight {
+            from { transform: translateX(100px); opacity: 0; }
+            to   { transform: translateX(0);     opacity: 1; }
+        }
+    </style>
+</head>
+<!-- FIX: body class = dashboard-page to match all other pages (uses shared sidebar/layout CSS) -->
+<body class="dashboard-page">
+
+    <!-- Loading Spinner -->
+    <div id="loader" class="loader">
+        <div class="spinner"></div>
+        <div class="loading-text">Loading symptoms data...</div>
+    </div>
+
+    <!-- Sidebar Navigation — identical structure to vital_signs.html -->
+    <div class="sidebar" id="sidebar">
+        <div class="user-info">
+            <div class="user-avatar" id="userAvatar">SU</div>
+            <div class="user-details">
+                <div class="user-name" id="userName">Loading...</div>
+                <div class="user-status">
+                    <span class="status-dot"></span>
+                    <span>Online</span>
+                </div>
+            </div>
+        </div>
+
+        <button class="logout-btn" id="logoutBtn">
+            <i class="fas fa-sign-out-alt"></i>
+            <span>Logout</span>
+        </button>
+
+        <nav class="main-nav">
+            <div class="nav-section">
+                <div class="nav-header">📋 Navigation</div>
+                <a href="dashboard.html"    class="nav-link"><i class="fas fa-home"></i><span>Dashboard</span></a>
+                <a href="profile.html"      class="nav-link"><i class="fas fa-user"></i><span>My Profile</span></a>
+                <a href="medications.html"  class="nav-link"><i class="fas fa-pills"></i><span>Medications</span></a>
+                <a href="lab_results.html"  class="nav-link"><i class="fas fa-flask"></i><span>Lab Results</span></a>
+                <a href="vital_signs.html"  class="nav-link"><i class="fas fa-heartbeat"></i><span>Vital Signs</span></a>
+                <a href="appointments.html" class="nav-link"><i class="fas fa-calendar-alt"></i><span>Appointments</span></a>
+                <a href="symptoms.html"     class="nav-link active"><i class="fas fa-thermometer"></i><span>Symptoms Tracker</span></a>
+                <a href="analytics.html"    class="nav-link"><i class="fas fa-chart-bar"></i><span>Health Analytics</span></a>
+                <a href="settings.html"     class="nav-link"><i class="fas fa-cog"></i><span>Settings</span></a>
+            </div>
+        </nav>
+
+        <div class="quick-stats">
+            <div class="stat-item">
+                <div class="stat-value" id="todaySymptoms">0</div>
+                <div class="stat-label">Today</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="weekSymptoms">0</div>
+                <div class="stat-label">This Week</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="activeSymptoms">0</div>
+                <div class="stat-label">Active</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile Menu Toggle -->
+    <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
+
+    <!-- Main Content -->
+    <div class="main-content">
+
+        <!-- Header — FIX: emoji prefix matching other pages -->
+        <header class="main-header">
+            <div class="header-left">
+                <h1>🩺 Symptoms Tracker & Health Journal</h1>
+                <p class="header-subtitle">Track, analyze, and understand your symptoms</p>
+            </div>
+            <div class="header-right">
+                <div class="date-display" id="currentDate">Loading...</div>
+                <button class="refresh-btn" id="refreshBtn">
+                    <i class="fas fa-sync-alt"></i><span>Refresh</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Symptoms Tabs -->
+        <div class="symptoms-tabs-container">
+            <div class="symptoms-tabs">
+                <button class="symptoms-tab active" data-tab="track">
+                    <i class="fas fa-plus-circle"></i><span>Track Symptom</span>
+                </button>
+                <button class="symptoms-tab" data-tab="history">
+                    <i class="fas fa-history"></i><span>Symptom History</span>
+                </button>
+                <button class="symptoms-tab" data-tab="analysis">
+                    <i class="fas fa-chart-bar"></i><span>Symptom Analysis</span>
+                </button>
+                <button class="symptoms-tab" data-tab="journal">
+                    <i class="fas fa-book"></i><span>Health Journal</span>
+                </button>
+                <button class="symptoms-tab" data-tab="patterns">
+                    <i class="fas fa-search"></i><span>Pattern Detection</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Tab Content -->
+        <div class="symptoms-content">
+
+            <!-- Tab 1: Track Symptom -->
+            <div class="tab-content active" id="trackTab">
+                <div class="tab-header">
+                    <h2>➕ Track New Symptom</h2>
+                    <p class="tab-subtitle">Record detailed information about your symptoms</p>
+                </div>
+
+                <div class="symptoms-form-container">
+                    <form id="symptomForm">
+                        <div class="form-row">
+                            <div class="form-group half">
+                                <label for="symptomDate"><i class="fas fa-calendar"></i> Symptom Date *</label>
+                                <input type="date" id="symptomDate" required>
+                            </div>
+                            <div class="form-group half">
+                                <label for="symptomTime"><i class="fas fa-clock"></i> Symptom Time</label>
+                                <input type="time" id="symptomTime">
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="symptomCategory"><i class="fas fa-tags"></i> Symptom Category</label>
+                                <select id="symptomCategory">
+                                    <option value="">Select Category</option>
+                                    <option value="general">🤒 General Symptoms</option>
+                                    <option value="cardiovascular">🫀 Cardiovascular</option>
+                                    <option value="respiratory">🫁 Respiratory</option>
+                                    <option value="neurological">🧠 Neurological</option>
+                                    <option value="gastrointestinal">🍽️ Gastrointestinal</option>
+                                    <option value="musculoskeletal">💪 Musculoskeletal</option>
+                                    <option value="sensory">👁️ Sensory</option>
+                                    <option value="dermatological">🧴 Dermatological</option>
+                                    <option value="sleep">😴 Sleep & Energy</option>
+                                    <option value="mental">😔 Mental Health</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group half">
+                                <label for="symptomName"><i class="fas fa-stethoscope"></i> Symptom Name *</label>
+                                <input type="text" id="symptomName" placeholder="e.g., Headache, Fever, Fatigue..." required list="symptomSuggestions">
+                                <datalist id="symptomSuggestions"></datalist>
+                            </div>
+                            <div class="form-group half">
+                                <label for="symptomSeverity"><i class="fas fa-exclamation-triangle"></i> Severity Level *</label>
+                                <select id="symptomSeverity" required>
+                                    <option value="">Select Severity</option>
+                                    <option value="mild">🟢 Mild</option>
+                                    <option value="moderate">🟡 Moderate</option>
+                                    <option value="severe">🟠 Severe</option>
+                                    <option value="very_severe">🔴 Very Severe</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group half">
+                                <label for="symptomDuration"><i class="fas fa-hourglass-half"></i> Duration</label>
+                                <select id="symptomDuration">
+                                    <option value="">Select Duration</option>
+                                    <option value="less_than_hour">Less than 1 hour</option>
+                                    <option value="1_4_hours">1–4 hours</option>
+                                    <option value="4_12_hours">4–12 hours</option>
+                                    <option value="12_24_hours">12–24 hours</option>
+                                    <option value="1_3_days">1–3 days</option>
+                                    <option value="3_7_days">3–7 days</option>
+                                    <option value="1_2_weeks">1–2 weeks</option>
+                                    <option value="more_2_weeks">More than 2 weeks</option>
+                                    <option value="chronic">Chronic</option>
+                                </select>
+                            </div>
+                            <div class="form-group half">
+                                <label for="symptomFrequency"><i class="fas fa-redo"></i> Frequency</label>
+                                <select id="symptomFrequency">
+                                    <option value="">Select Frequency</option>
+                                    <option value="first_time">First Time</option>
+                                    <option value="occasional">Occasional</option>
+                                    <option value="daily">Daily</option>
+                                    <option value="several_times_daily">Several times daily</option>
+                                    <option value="weekly">Weekly</option>
+                                    <option value="monthly">Monthly</option>
+                                    <option value="constant">Constant</option>
+                                    <option value="intermittent">Intermittent</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label><i class="fas fa-map-marker-alt"></i> Body Location</label>
+                                <div class="checkbox-group-grid" id="bodyLocations"></div>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group half">
+                                <label><i class="fas fa-heartbeat"></i> Quality / Character</label>
+                                <div class="checkbox-group" id="symptomQualityGroup"></div>
+                            </div>
+                            <div class="form-group half">
+                                <label><i class="fas fa-bolt"></i> Possible Triggers</label>
+                                <div class="checkbox-group" id="symptomTriggersGroup"></div>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label><i class="fas fa-link"></i> Associated Symptoms</label>
+                                <div class="checkbox-group-grid" id="associatedSymptomsGroup"></div>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group half">
+                                <label for="symptomImpact"><i class="fas fa-chart-line"></i> Impact on Daily Activities</label>
+                                <select id="symptomImpact">
+                                    <option value="">Select Impact</option>
+                                    <option value="no_impact">No Impact</option>
+                                    <option value="mild_impact">Mild Impact</option>
+                                    <option value="moderate_impact">Moderate Impact</option>
+                                    <option value="severe_impact">Severe Impact</option>
+                                    <option value="unable_function">Unable to Function</option>
+                                </select>
+                            </div>
+                            <div class="form-group half">
+                                <label for="relievingFactors"><i class="fas fa-hand-holding-heart"></i> What Helps Relieve It?</label>
+                                <input type="text" id="relievingFactors" placeholder="e.g., Rest, Medication, Heat...">
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group full">
+                                <label for="symptomDescription"><i class="fas fa-edit"></i> Detailed Description *</label>
+                                <textarea id="symptomDescription" rows="4" placeholder="Describe the symptom in detail..." required></textarea>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="reset" class="btn-secondary" id="resetBtn">
+                                <i class="fas fa-redo"></i> Clear Form
+                            </button>
+                            <button type="submit" class="btn-primary" id="submitBtn">
+                                <i class="fas fa-save"></i> Record Symptom
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Tab 2: Symptom History -->
+            <div class="tab-content" id="historyTab">
+                <div class="tab-header">
+                    <h2>📋 Symptom History</h2>
+                    <p class="tab-subtitle">View and manage your recorded symptoms</p>
+                </div>
+                <div class="history-filters">
+                    <div class="filter-group">
+                        <label for="timeFilter">Time Period:</label>
+                        <select id="timeFilter">
+                            <option value="all">All Time</option>
+                            <option value="today">Today</option>
+                            <option value="week">Last 7 Days</option>
+                            <option value="month">Last 30 Days</option>
+                            <option value="3months">Last 3 Months</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="severityFilter">Severity:</label>
+                        <select id="severityFilter">
+                            <option value="all">All</option>
+                            <option value="mild">Mild</option>
+                            <option value="moderate">Moderate</option>
+                            <option value="severe">Severe</option>
+                            <option value="very_severe">Very Severe</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="searchFilter">Search:</label>
+                        <input type="text" id="searchFilter" placeholder="Search symptoms...">
+                    </div>
+                    <button class="btn-secondary" id="exportHistory">
+                        <i class="fas fa-download"></i> Export
+                    </button>
+                </div>
+                <div class="symptoms-list" id="symptomsList">
+                    <div class="empty-state">
+                        <i class="fas fa-clipboard-list"></i>
+                        <h3>No symptoms recorded yet</h3>
+                        <p>Track your first symptom to see your history here</p>
+                        <button class="btn-primary" id="trackFirstSymptom">
+                            <i class="fas fa-plus"></i> Track First Symptom
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 3: Symptom Analysis -->
+            <div class="tab-content" id="analysisTab">
+                <div class="tab-header">
+                    <h2>📊 Symptom Analysis</h2>
+                    <p class="tab-subtitle">Analyze patterns and trends in your symptoms</p>
+                </div>
+                <div class="analysis-container">
+                    <div class="analysis-selector">
+                        <label for="symptomToAnalyze">Select Symptom to Analyze:</label>
+                        <select id="symptomToAnalyze">
+                            <option value="">Loading symptoms...</option>
+                        </select>
+                    </div>
+                    <div class="analysis-grid">
+                        <div class="analysis-card large">
+                            <div class="analysis-card-header">
+                                <h3><i class="fas fa-chart-line"></i> Frequency Analysis</h3>
+                            </div>
+                            <div class="analysis-card-content">
+                                <canvas id="frequencyChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="analysis-card">
+                            <div class="analysis-card-header">
+                                <h3><i class="fas fa-chart-pie"></i> Severity Distribution</h3>
+                            </div>
+                            <div class="analysis-card-content">
+                                <canvas id="severityChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="analysis-card">
+                            <div class="analysis-card-header">
+                                <h3><i class="fas fa-calculator"></i> Statistical Summary</h3>
+                            </div>
+                            <div class="analysis-card-content">
+                                <div class="stats-grid">
+                                    <div class="stat-item"><div class="stat-label">Total Episodes</div><div class="stat-value" id="totalEpisodes">0</div></div>
+                                    <div class="stat-item"><div class="stat-label">Avg Days Between</div><div class="stat-value" id="avgDaysBetween">--</div></div>
+                                    <div class="stat-item"><div class="stat-label">Most Common Severity</div><div class="stat-value" id="mostCommonSeverity">--</div></div>
+                                    <div class="stat-item"><div class="stat-label">Recent Trend</div><div class="stat-value" id="recentTrend">--</div></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="analysis-card">
+                            <div class="analysis-card-header">
+                                <h3><i class="fas fa-lightbulb"></i> Pattern Insights</h3>
+                            </div>
+                            <div class="analysis-card-content">
+                                <div class="insights-list" id="patternInsights">
+                                    <div class="insight-item">
+                                        <i class="fas fa-info-circle"></i>
+                                        <span>Select a symptom to see insights</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 4: Health Journal -->
+            <div class="tab-content" id="journalTab">
+                <div class="tab-header">
+                    <h2>📔 Health Journal</h2>
+                    <p class="tab-subtitle">Record daily health notes and observations</p>
+                </div>
+                <div class="journal-container">
+                    <div class="journal-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="journalDate"><i class="fas fa-calendar"></i> Journal Date</label>
+                                <input type="date" id="journalDate">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label><i class="fas fa-star"></i> Overall Health Today (1–10)</label>
+                                <div class="rating-slider">
+                                    <input type="range" id="healthRating" min="1" max="10" value="7">
+                                    <div class="rating-labels">
+                                        <span>1 - Poor</span>
+                                        <span id="ratingValue">7</span>
+                                        <span>10 - Excellent</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group half">
+                                <label for="moodToday"><i class="fas fa-smile"></i> Today's Mood</label>
+                                <select id="moodToday">
+                                    <option value="excellent">😊 Excellent</option>
+                                    <option value="good">🙂 Good</option>
+                                    <option value="neutral" selected>😐 Neutral</option>
+                                    <option value="poor">😔 Poor</option>
+                                    <option value="very_poor">😢 Very Poor</option>
+                                    <option value="irritated">😠 Irritated</option>
+                                    <option value="anxious">😰 Anxious</option>
+                                    <option value="tired">😴 Tired</option>
+                                    <option value="energetic">🏃‍♂️ Energetic</option>
+                                </select>
+                            </div>
+                            <div class="form-group half">
+                                <label for="sleepQuality"><i class="fas fa-moon"></i> Sleep Quality</label>
+                                <select id="sleepQuality">
+                                    <option value="excellent">😴 Excellent</option>
+                                    <option value="good">🙂 Good</option>
+                                    <option value="fair" selected>😐 Fair</option>
+                                    <option value="poor">😔 Poor</option>
+                                    <option value="very_poor">👀 Very Poor</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="energyLevel"><i class="fas fa-battery-full"></i> Energy Level</label>
+                                <select id="energyLevel">
+                                    <option value="very_low">Very Low</option>
+                                    <option value="low">Low</option>
+                                    <option value="moderate" selected>Moderate</option>
+                                    <option value="high">High</option>
+                                    <option value="very_high">Very High</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label><i class="fas fa-tasks"></i> Activities Affected by Health</label>
+                                <div class="checkbox-group-grid" id="activitiesAffected"></div>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="medicationsTaken"><i class="fas fa-pills"></i> Medications / Supplements Taken Today</label>
+                                <textarea id="medicationsTaken" rows="3" placeholder="List medications and supplements taken today with times..."></textarea>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="dailyNotes"><i class="fas fa-edit"></i> Daily Notes</label>
+                                <textarea id="dailyNotes" rows="4" placeholder="How are you feeling today? Any notable changes?"></textarea>
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn-secondary" id="clearJournalBtn">
+                                <i class="fas fa-redo"></i> Clear
+                            </button>
+                            <button type="button" class="btn-primary" id="saveJournalBtn">
+                                <i class="fas fa-save"></i> Save Journal Entry
+                            </button>
+                        </div>
+                    </div>
+                    <div class="journal-history">
+                        <h3><i class="fas fa-history"></i> Recent Journal Entries</h3>
+                        <div class="journal-entries" id="journalEntries">
+                            <div class="empty-state">
+                                <i class="fas fa-book-open"></i>
+                                <p>No journal entries yet</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 5: Pattern Detection -->
+            <div class="tab-content" id="patternsTab">
+                <div class="tab-header">
+                    <h2>🔍 Advanced Pattern Detection</h2>
+                    <p class="tab-subtitle">Analysis of symptom patterns from your real data</p>
+                </div>
+                <div class="patterns-container">
+                    <!-- Requirements card (shown until threshold met) -->
+                    <div class="patterns-requirements" id="patternsRequirements">
+                        <div class="requirements-card">
+                            <div class="requirements-header">
+                                <i class="fas fa-search"></i>
+                                <h3>Pattern Detection Requirements</h3>
+                            </div>
+                            <div class="requirements-content">
+                                <p>To unlock advanced pattern analysis, you need:</p>
+                                <ul class="requirements-list">
+                                    <li><i class="fas fa-circle" style="color:#ccc;"></i> <span>0/6 symptom episodes recorded</span></li>
+                                    <li><i class="fas fa-circle" style="color:#ccc;"></i> <span>0/3 different symptoms tracked</span></li>
+                                    <li><i class="fas fa-circle" style="color:#ccc;"></i> <span>0/4 detailed descriptions</span></li>
+                                    <li><i class="fas fa-circle" style="color:#ccc;"></i> <span>0/14 days of tracking</span></li>
+                                </ul>
+                                <p class="requirements-progress"><span id="requirementsProgress">0%</span> complete</p>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" id="progressFill"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI Analysis (hidden until requirements met) -->
+                    <div class="ai-analysis" id="aiAnalysis" style="display:none;">
+                        <div class="ai-grid">
+                            <div class="ai-card">
+                                <div class="ai-card-header">
+                                    <i class="fas fa-link"></i>
+                                    <h3>Symptom Correlations</h3>
+                                </div>
+                                <div class="ai-card-content">
+                                    <div class="correlations-list" id="correlationsList">
+                                        <div class="correlation-item"><span>Loading correlations...</span></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="ai-card">
+                                <div class="ai-card-header">
+                                    <i class="fas fa-clock"></i>
+                                    <h3>Temporal Patterns</h3>
+                                </div>
+                                <div class="ai-card-content">
+                                    <div class="temporal-patterns" id="temporalPatterns">
+                                        <div class="pattern-item"><span>Loading patterns...</span></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- FIX: fa-crystal-ball is not a valid FA6 icon — replaced with fa-brain -->
+                            <div class="ai-card large">
+                                <div class="ai-card-header">
+                                    <i class="fas fa-brain"></i>
+                                    <h3>Predictive Insights</h3>
+                                </div>
+                                <div class="ai-card-content">
+                                    <div class="predictive-insights">
+                                        <h4>AI Analysis Features</h4>
+                                        <div class="insights-grid">
+                                            <div class="insight-item"><i class="fas fa-bell"></i><div><strong>Predictive alerts</strong><p>For potential symptom flare-ups</p></div></div>
+                                            <div class="insight-item"><i class="fas fa-bolt"></i><div><strong>Trigger identification</strong><p>Based on patterns and correlations</p></div></div>
+                                            <div class="insight-item"><i class="fas fa-pills"></i><div><strong>Medication effect analysis</strong><p>On symptoms and side effects</p></div></div>
+                                            <div class="insight-item"><i class="fas fa-calendar-alt"></i><div><strong>Seasonal pattern detection</strong><p>Across different times of year</p></div></div>
+                                            <div class="insight-item"><i class="fas fa-file-medical"></i><div><strong>Provider-ready reports</strong><p>Detailed insights and trends</p></div></div>
+                                        </div>
+                                        <div class="ai-note">
+                                            <i class="fas fa-info-circle"></i>
+                                            <p>Pattern analysis is computed from your real recorded data — correlations and timing shown above are based on actual entries.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- end symptoms-content -->
+
+        <!-- Footer — FIX: matches vital_signs.html logo structure exactly -->
+        <footer class="main-footer">
+            <div class="footer-content">
+                <div class="footer-logo">
+                    <span class="logo-symbol">H</span>
+                    <span class="logo-text">Healytica Record</span>
+                </div>
+                <div class="footer-links">
+                    <a href="#" class="footer-link">Privacy Policy</a>
+                    <a href="#" class="footer-link">Terms of Service</a>
+                    <a href="#" class="footer-link">Help Center</a>
+                </div>
+                <div class="footer-copyright">© 2024 Healytica Record. Secure • Private • Yours.</div>
+            </div>
+        </footer>
+    </div><!-- end main-content -->
+
+    <div id="messageContainer"></div>
+
+    <!-- Scripts — same load order as vital_signs.html -->
+    <script src="js/supabase.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/symptoms.js"></script>
+
+    <!-- FIX: Auth guard matches vital_signs.html pattern exactly -->
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log('Symptoms page — initialising...');
+
+            // Auth check — redirect on failure, same as vital_signs.html
+            let user = null;
+            try {
+                user = await supabaseService.getCurrentUser();
+                if (!user) { window.location.href = 'index.html'; return; }
+            } catch (e) {
+                console.error('Auth error:', e);
+                window.location.href = 'index.html';
+                return;
+            }
+
+            // loadSymptoms() handles the rest (user info, data, listeners)
+            if (typeof loadSymptoms === 'function') {
+                await loadSymptoms();
+            } else {
+                console.error('loadSymptoms not found — check symptoms.js loaded correctly');
+            }
+        });
+    </script>
+</body>
+</html>

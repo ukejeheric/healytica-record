@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - Healytica Record</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/settings.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Include Supabase JS -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+</head>
+<body class="dashboard-page">
+    
+    <!-- Loading Spinner -->
+    <div id="loader" class="loader">
+        <div class="spinner"></div>
+        <div class="loading-text">Loading settings...</div>
+    </div>
+
+    <!-- Sidebar Navigation -->
+    <div class="sidebar" id="sidebar">
+        <!-- User Info -->
+        <div class="user-info">
+            <div class="user-avatar" id="userAvatar"></div>
+            <div class="user-details">
+                <div class="user-name" id="userName">Loading...</div>
+                <div class="user-status">
+                    <span class="status-dot"></span>
+                    <span>Online</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Logout Button -->
+        <button class="logout-btn" id="logoutBtn">
+            <i class="fas fa-sign-out-alt"></i>
+            <span>Logout</span>
+        </button>
+
+        <!-- Navigation Menu -->
+        <nav class="main-nav">
+            <div class="nav-section">
+                <div class="nav-header">📋 Navigation</div>
+                <a href="dashboard.html" class="nav-link">
+                    <i class="fas fa-home"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="profile.html" class="nav-link">
+                    <i class="fas fa-user"></i>
+                    <span>My Profile</span>
+                </a>
+                <a href="medications.html" class="nav-link">
+                    <i class="fas fa-pills"></i>
+                    <span>Medications</span>
+                </a>
+                <a href="lab_results.html" class="nav-link">
+                    <i class="fas fa-flask"></i>
+                    <span>Lab Results</span>
+                </a>
+                <a href="vital_signs.html" class="nav-link">
+                    <i class="fas fa-heartbeat"></i>
+                    <span>Vital Signs</span>
+                </a>
+                <a href="appointments.html" class="nav-link">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>Appointments</span>
+                </a>
+                <a href="symptoms.html" class="nav-link">
+                    <i class="fas fa-thermometer"></i>
+                    <span>Symptoms Tracker</span>
+                </a>
+                <a href="analytics.html" class="nav-link">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>Health Analytics</span>
+                </a>
+                <a href="settings.html" class="nav-link active">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </a>
+            </div>
+        </nav>
+
+        <!-- Quick Stats -->
+        <div class="quick-stats">
+            <div class="stat-item">
+                <div class="stat-value" id="activeMedsCount">0</div>
+                <div class="stat-label">Active Meds</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="upcomingAptsCount">0</div>
+                <div class="stat-label">Appointments</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="healthScore">--</div>
+                <div class="stat-label">Health Score</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile Menu Toggle -->
+    <button class="menu-toggle" id="menuToggle">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Header -->
+        <header class="main-header">
+            <div class="header-left">
+                <h1>Settings & Preferences</h1>
+                <p class="header-subtitle">Configure your Healytica Record experience</p>
+            </div>
+            <div class="header-right">
+                <div class="date-display" id="currentDate">Loading...</div>
+                <button class="refresh-btn" id="refreshBtn">
+                    <i class="fas fa-sync-alt"></i>
+                    <span>Refresh</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Settings Content -->
+        <div class="settings-content">
+            <!-- Settings Tabs -->
+            <div class="settings-tabs" id="settingsTabs">
+                <button class="settings-tab active" data-tab="profile">
+                    <i class="fas fa-user"></i>
+                    <span>Profile</span>
+                </button>
+                <button class="settings-tab" data-tab="security">
+                    <i class="fas fa-lock"></i>
+                    <span>Security</span>
+                </button>
+                <button class="settings-tab" data-tab="data">
+                    <i class="fas fa-database"></i>
+                    <span>Data</span>
+                </button>
+                <button class="settings-tab" data-tab="preferences">
+                    <i class="fas fa-palette"></i>
+                    <span>Preferences</span>
+                </button>
+                <button class="settings-tab" data-tab="health">
+                    <i class="fas fa-heartbeat"></i>
+                    <span>Health</span>
+                </button>
+                <button class="settings-tab" data-tab="info">
+                    <i class="fas fa-info-circle"></i>
+                    <span>App Info</span>
+                </button>
+            </div>
+
+            <!-- Tab Content -->
+            <div class="tab-content">
+                <!-- Profile Tab -->
+                <div class="tab-pane active" id="profileTab">
+                    <div class="settings-section">
+                        <h2><i class="fas fa-user"></i> Profile Settings</h2>
+                        
+                        <div class="form-grid">
+                            <!-- Personal Information -->
+                            <div class="form-section">
+                                <h3>Personal Information</h3>
+                                <div class="form-group">
+                                    <label for="settingsFullName">Full Name *</label>
+                                    <input type="text" id="settingsFullName" placeholder="Enter your full name">
+                                </div>
+                                
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="settingsEmail">Email Address</label>
+                                        <input type="email" id="settingsEmail" placeholder="your@email.com">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="settingsPhone">Phone Number</label>
+                                        <input type="tel" id="settingsPhone" placeholder="Phone number">
+                                    </div>
+                                </div>
+                                
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="settingsGender">Gender</label>
+                                        <select id="settingsGender">
+                                            <option value="">Select Gender</option>
+                                            <option value="Male">Male</option>
+                                            <option value="Female">Female</option>
+                                            <option value="Other">Other</option>
+                                            <option value="Prefer not to say">Prefer not to say</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="settingsDOB">Date of Birth</label>
+                                        <input type="date" id="settingsDOB" max="">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Medical Information -->
+                            <div class="form-section">
+                                <h3>Medical Information</h3>
+                                <div class="form-group">
+                                    <label for="settingsBloodType">Blood Type</label>
+                                    <select id="settingsBloodType">
+                                        <option value="">Select Blood Type</option>
+                                        <option value="A+">A+</option>
+                                        <option value="A-">A-</option>
+                                        <option value="B+">B+</option>
+                                        <option value="B-">B-</option>
+                                        <option value="AB+">AB+</option>
+                                        <option value="AB-">AB-</option>
+                                        <option value="O+">O+</option>
+                                        <option value="O-">O-</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="settingsAllergies">Allergies & Reactions</label>
+                                    <textarea id="settingsAllergies" rows="3" placeholder="List any drug allergies, food allergies, or other reactions..."></textarea>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="settingsMedicalHistory">Medical History</label>
+                                    <textarea id="settingsMedicalHistory" rows="3" placeholder="Previous surgeries, chronic conditions, family history..."></textarea>
+                                </div>
+                            </div>
+                            
+                            <!-- Emergency Contact -->
+                            <div class="form-section">
+                                <h3>Emergency Contact</h3>
+                                <div class="form-group">
+                                    <label for="settingsEmergencyName">Contact Name</label>
+                                    <input type="text" id="settingsEmergencyName" placeholder="Emergency contact person">
+                                </div>
+                                
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="settingsEmergencyRelation">Relationship</label>
+                                        <select id="settingsEmergencyRelation">
+                                            <option value="">Select Relationship</option>
+                                            <option value="Spouse">Spouse</option>
+                                            <option value="Parent">Parent</option>
+                                            <option value="Child">Child</option>
+                                            <option value="Sibling">Sibling</option>
+                                            <option value="Friend">Friend</option>
+                                            <option value="Other">Other</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="settingsEmergencyPhone">Phone Number</label>
+                                        <input type="tel" id="settingsEmergencyPhone" placeholder="Emergency phone">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Address -->
+                            <div class="form-section">
+                                <h3>Address</h3>
+                                <div class="form-group">
+                                    <label for="settingsAddress">Home Address</label>
+                                    <textarea id="settingsAddress" rows="2" placeholder="Your home address"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-secondary" id="cancelProfile">
+                                Cancel
+                            </button>
+                            <button type="button" class="btn btn-primary" id="saveProfile">
+                                <i class="fas fa-save"></i> Save Profile
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Security Tab -->
+                <div class="tab-pane" id="securityTab">
+                    <div class="settings-section">
+                        <h2><i class="fas fa-lock"></i> Security & Privacy</h2>
+                        
+                        <!-- Password Management -->
+                        <div class="form-section">
+                            <h3>Password Management</h3>
+                            <div class="form-group">
+                                <label for="currentPassword">Current Password</label>
+                                <input type="password" id="currentPassword" placeholder="Enter current password">
+                            </div>
+                            <div class="form-group">
+                                <label for="newPassword">New Password</label>
+                                <input type="password" id="newPassword" placeholder="Enter new password">
+                                <small class="form-text">Minimum 8 characters with mix of letters, numbers, and symbols</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="confirmPasswordSec">Confirm New Password</label>
+                                <input type="password" id="confirmPasswordSec" placeholder="Confirm new password">
+                            </div>
+                            <button type="button" class="btn btn-primary" id="changePasswordBtn">
+                                <i class="fas fa-key"></i> Change Password
+                            </button>
+                        </div>
+                        
+                        <!-- App Security -->
+                        <div class="form-section">
+                            <h3>App Security</h3>
+                            <div class="form-group checkbox-group">
+                                <input type="checkbox" id="enablePIN">
+                                <label for="enablePIN">Enable 4-digit App PIN</label>
+                                <small class="form-text">Require PIN to access sensitive health data</small>
+                            </div>
+                            <div class="form-group" id="pinSettings" style="display: none;">
+                                <label for="appPIN">Set 4-digit PIN</label>
+                                <input type="password" id="appPIN" placeholder="Enter 4-digit PIN" maxlength="4">
+                            </div>
+                            <div class="form-group">
+                                <label for="autoLogout">Auto Logout</label>
+                                <select id="autoLogout">
+                                    <option value="0">Never</option>
+                                    <option value="15">After 15 minutes</option>
+                                    <option value="60">After 1 hour</option>
+                                    <option value="240">After 4 hours</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <!-- Privacy Settings -->
+                        <div class="form-section">
+                            <h3>Privacy Settings</h3>
+                            <div class="form-group">
+                                <label for="dataSharing">Data Sharing for Research</label>
+                                <select id="dataSharing">
+                                    <option value="none">No sharing</option>
+                                    <option value="anonymous">Anonymous data only</option>
+                                    <option value="full">Full participation</option>
+                                </select>
+                                <small class="form-text">Help improve healthcare through anonymous data contribution</small>
+                            </div>
+                            <div class="form-group checkbox-group">
+                                <input type="checkbox" id="emergencyAccess" checked>
+                                <label for="emergencyAccess">Enable Emergency Medical Access</label>
+                                <small class="form-text">Allow emergency responders to view critical medical information</small>
+                            </div>
+                            <div class="form-group checkbox-group">
+                                <input type="checkbox" id="shareAnalytics" checked>
+                                <label for="shareAnalytics">Share Usage Analytics</label>
+                                <small class="form-text">Help us improve the app by sharing anonymous usage data</small>
+                            </div>
+                            <div class="form-group checkbox-group">
+                                <input type="checkbox" id="backupEncryption" checked>
+                                <label for="backupEncryption">Encrypt Local Backups</label>
+                                <small class="form-text">Add encryption to protect your health data backups</small>
+                            </div>
+                        </div>
+                        
+                        <!-- Session Management -->
+                        <div class="form-section">
+                            <h3>Session Management</h3>
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-warning" id="logoutAllBtn">
+                                    <i class="fas fa-sign-out-alt"></i> Logout from All Devices
+                                </button>
+                                <button type="button" class="btn btn-danger" id="resetAppBtn">
+                                    <i class="fas fa-trash"></i> Clear All Data & Reset App
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Data Management Tab -->
+                <div class="tab-pane" id="dataTab">
+                    <div class="settings-section">
+                        <h2><i class="fas fa-database"></i> Data Management</h2>
+                        
+                        <!-- Export Data -->
+                        <div class="form-section">
+                            <h3>Export Data</h3>
+                            <div class="form-group">
+                                <label for="exportFormat">Export Format</label>
+                                <select id="exportFormat">
+                                    <option value="csv">CSV (Excel)</option>
+                                    <option value="pdf">PDF Report</option>
+                                    <option value="json">JSON (Developer)</option>
+                                    <option value="fhir">FHIR (Medical)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="exportDateRange">Date Range</label>
+                                <div class="form-row">
+                                    <input type="date" id="exportStartDate">
+                                    <span>to</span>
+                                    <input type="date" id="exportEndDate">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Data to Include</label>
+                                <div class="checkbox-group">
+                                    <div>
+                                        <input type="checkbox" id="exportMeds" checked>
+                                        <label for="exportMeds">Medications</label>
+                                    </div>
+                                    <div>
+                                        <input type="checkbox" id="exportLabs" checked>
+                                        <label for="exportLabs">Lab Results</label>
+                                    </div>
+                                    <div>
+                                        <input type="checkbox" id="exportVitals" checked>
+                                        <label for="exportVitals">Vital Signs</label>
+                                    </div>
+                                    <div>
+                                        <input type="checkbox" id="exportSymptoms">
+                                        <label for="exportSymptoms">Symptoms</label>
+                                    </div>
+                                    <div>
+                                        <input type="checkbox" id="exportAppointments">
+                                        <label for="exportAppointments">Appointments</label>
+                                    </div>
+                                    <div>
+                                        <input type="checkbox" id="exportProfile">
+                                        <label for="exportProfile">Profile</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-primary" id="generateExportBtn">
+                                <i class="fas fa-file-export"></i> Generate Export
+                            </button>
+                        </div>
+                        
+                        <!-- Backup & Restore -->
+                        <div class="form-section">
+                            <h3>Backup & Restore</h3>
+                            <div class="form-group">
+                                <p>Last backup: <span id="lastBackupDate">Never</span></p>
+                            </div>
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-primary" id="createBackupBtn">
+                                    <i class="fas fa-shield-alt"></i> Create Backup
+                                </button>
+                                <button type="button" class="btn btn-secondary" id="restoreBackupBtn">
+                                    <i class="fas fa-undo"></i> Restore Backup
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Data Management -->
+                        <div class="form-section">
+                            <h3>Data Management</h3>
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-secondary" id="clearCacheBtn">
+                                    <i class="fas fa-broom"></i> Clear Cache
+                                </button>
+                                <button type="button" class="btn btn-secondary" id="rebuildAnalyticsBtn">
+                                    <i class="fas fa-chart-bar"></i> Rebuild Analytics
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Preferences Tab -->
+                <div class="tab-pane" id="preferencesTab">
+                    <div class="settings-section">
+                        <h2><i class="fas fa-palette"></i> App Preferences</h2>
+                        
+                        <!-- Display Preferences -->
+                        <div class="form-section">
+                            <h3>Display Preferences</h3>
+                            <div class="form-group">
+                                <label for="appTheme">Color Theme</label>
+                                <select id="appTheme">
+                                    <option value="light">Light Mode</option>
+                                    <option value="dark">Dark Mode</option>
+                                    <option value="auto">Auto (System)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="fontSize">Font Size</label>
+                                <select id="fontSize">
+                                    <option value="small">Small</option>
+                                    <option value="medium" selected>Medium</option>
+                                    <option value="large">Large</option>
+                                    <option value="xlarge">Extra Large</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="infoDensity">Information Density</label>
+                                <select id="infoDensity">
+                                    <option value="compact">Compact</option>
+                                    <option value="comfortable" selected>Comfortable</option>
+                                    <option value="spacious">Spacious</option>
+                                </select>
+                                <small class="form-text">How much information to show at once</small>
+                            </div>
+                        </div>
+                        
+                        <!-- Notifications -->
+                        <div class="form-section">
+                            <h3>Notifications</h3>
+                            <div class="checkbox-group">
+                                <div>
+                                    <input type="checkbox" id="notifyMeds" checked>
+                                    <label for="notifyMeds">Medication Reminders</label>
+                                </div>
+                                <div>
+                                    <input type="checkbox" id="notifyAppointments" checked>
+                                    <label for="notifyAppointments">Appointment Alerts</label>
+                                </div>
+                                <div>
+                                    <input type="checkbox" id="notifyLabs" checked>
+                                    <label for="notifyLabs">Lab Result Notifications</label>
+                                </div>
+                                <div>
+                                    <input type="checkbox" id="notifySymptoms">
+                                    <label for="notifySymptoms">Daily Symptom Check-ins</label>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="notificationTime">Daily Summary Time</label>
+                                <input type="time" id="notificationTime" value="19:00">
+                                <small class="form-text">Time to send daily health summary</small>
+                            </div>
+                        </div>
+                        
+                        <!-- Language & Region -->
+                        <div class="form-section">
+                            <h3>Language & Region</h3>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="appLanguage">Language</label>
+                                    <select id="appLanguage">
+                                        <option value="en" selected>English</option>
+                                        <option value="es">Spanish</option>
+                                        <option value="fr">French</option>
+                                        <option value="de">German</option>
+                                        <option value="zh">Chinese</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="appRegion">Region</label>
+                                    <select id="appRegion">
+                                        <option value="us" selected>United States</option>
+                                        <option value="uk">United Kingdom</option>
+                                        <option value="ca">Canada</option>
+                                        <option value="au">Australia</option>
+                                        <option value="eu">European Union</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="measurementUnits">Measurement Units</label>
+                                <select id="measurementUnits">
+                                    <option value="metric" selected>Metric (kg, cm)</option>
+                                    <option value="imperial">Imperial (lb, in)</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <!-- Advanced Preferences -->
+                        <div class="form-section">
+                            <h3>Advanced Preferences</h3>
+                            <div class="checkbox-group">
+                                <div>
+                                    <input type="checkbox" id="autoSaveForms" checked>
+                                    <label for="autoSaveForms">Auto-save Forms</label>
+                                </div>
+                                <div>
+                                    <input type="checkbox" id="developerMode">
+                                    <label for="developerMode">Developer Mode</label>
+                                </div>
+                                <div>
+                                    <input type="checkbox" id="debugLogging">
+                                    <label for="debugLogging">Debug Logging</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Health Preferences Tab -->
+                <div class="tab-pane" id="healthTab">
+                    <div class="settings-section">
+                        <h2><i class="fas fa-heartbeat"></i> Health Preferences</h2>
+                        
+                        <!-- Health Monitoring -->
+                        <div class="form-section">
+                            <h3>Health Monitoring</h3>
+                            <div class="form-group">
+                                <label for="primaryCareDoctor">Primary Care Physician</label>
+                                <input type="text" id="primaryCareDoctor" placeholder="Dr. Name">
+                            </div>
+                            <div class="form-group">
+                                <label for="preferredPharmacy">Preferred Pharmacy</label>
+                                <input type="text" id="preferredPharmacy" placeholder="Pharmacy name">
+                            </div>
+                            <div class="form-group">
+                                <label for="insuranceProvider">Insurance Provider</label>
+                                <input type="text" id="insuranceProvider" placeholder="Insurance company">
+                            </div>
+                        </div>
+                        
+                        <!-- Health Goals -->
+                        <div class="form-section">
+                            <h3>Health Goals</h3>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="weightGoal">Weight Goal (kg)</label>
+                                    <input type="number" id="weightGoal" min="0" step="0.1" value="70">
+                                </div>
+                                <div class="form-group">
+                                    <label for="bloodPressureGoal">Blood Pressure Goal</label>
+                                    <input type="text" id="bloodPressureGoal" placeholder="120/80">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="activityGoal">Daily Steps Goal</label>
+                                <input type="number" id="activityGoal" min="0" value="10000">
+                            </div>
+                        </div>
+                        
+                        <!-- Emergency Preferences -->
+                        <div class="form-section">
+                            <h3>Emergency Preferences</h3>
+                            <div class="checkbox-group">
+                                <div>
+                                    <input type="checkbox" id="showEmergencyCard" checked>
+                                    <label for="showEmergencyCard">Show Emergency Medical Card</label>
+                                </div>
+                                <div>
+                                    <input type="checkbox" id="autoNotifyEmergency" checked>
+                                    <label for="autoNotifyEmergency">Auto-notify Emergency Contact</label>
+                                </div>
+                                <div>
+                                    <input type="checkbox" id="shareVitalsEmergency" checked>
+                                    <label for="shareVitalsEmergency">Share Vitals in Emergency</label>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="advancedDirective">Advanced Directive</label>
+                                <select id="advancedDirective">
+                                    <option value="none" selected>Not specified</option>
+                                    <option value="onfile">On file</option>
+                                    <option value="digital">Digital copy</option>
+                                    <option value="na">None</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <!-- Medication Management -->
+                        <div class="form-section">
+                            <h3>Medication Management</h3>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="reminderLeadTime">Reminder Lead Time (minutes)</label>
+                                    <input type="number" id="reminderLeadTime" min="0" max="120" value="15">
+                                </div>
+                                <div class="form-group">
+                                    <label for="refillAlertDays">Refill Alert (days before)</label>
+                                    <input type="number" id="refillAlertDays" min="1" max="30" value="7">
+                                </div>
+                            </div>
+                            <div class="checkbox-group">
+                                <div>
+                                    <input type="checkbox" id="trackAdherence" checked>
+                                    <label for="trackAdherence">Track Medication Adherence</label>
+                                </div>
+                                <div>
+                                    <input type="checkbox" id="trackSideEffects" checked>
+                                    <label for="trackSideEffects">Track Side Effects</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- App Info Tab -->
+                <div class="tab-pane" id="infoTab">
+                    <div class="settings-section">
+                        <h2><i class="fas fa-info-circle"></i> App Information</h2>
+                        
+                        <!-- App Details -->
+                        <div class="form-section">
+                            <h3>App Details</h3>
+                            <div class="info-grid">
+                                <div class="info-item">
+                                    <span class="info-label">Version</span>
+                                    <span class="info-value" id="appVersion">1.0.0</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Last Updated</span>
+                                    <span class="info-value" id="lastUpdated">2024-01-15</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Database Size</span>
+                                    <span class="info-value" id="dbSize">0 KB</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Health Records</span>
+                                    <span class="info-value" id="recordCount">0</span>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-primary" id="checkUpdatesBtn">
+                                <i class="fas fa-sync"></i> Check for Updates
+                            </button>
+                        </div>
+                        
+                        <!-- Support -->
+                        <div class="form-section">
+                            <h3>Support</h3>
+                            <div class="info-grid">
+                                <div class="info-item">
+                                    <span class="info-label">Support Email</span>
+                                    <span class="info-value">support@healytica.com</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Website</span>
+                                    <span class="info-value">healytica.com</span>
+                                </div>
+                            </div>
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-secondary" id="contactSupportBtn">
+                                    <i class="fas fa-envelope"></i> Contact Support
+                                </button>
+                                <button type="button" class="btn btn-secondary" id="reportBugBtn">
+                                    <i class="fas fa-bug"></i> Report a Bug
+                                </button>
+                                <button type="button" class="btn btn-secondary" id="suggestFeatureBtn">
+                                    <i class="fas fa-lightbulb"></i> Suggest a Feature
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Legal & Policies -->
+                        <div class="form-section">
+                            <h3>Legal & Policies</h3>
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-secondary" id="viewTermsBtn">
+                                    <i class="fas fa-file-contract"></i> Terms of Service
+                                </button>
+                                <button type="button" class="btn btn-secondary" id="viewPrivacyBtn">
+                                    <i class="fas fa-shield-alt"></i> Privacy Policy
+                                </button>
+                                <button type="button" class="btn btn-danger" id="viewDisclaimerBtn">
+                                    <i class="fas fa-exclamation-triangle"></i> Medical Disclaimer
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Technical Information -->
+                        <div class="form-section">
+                            <h3>Technical Information</h3>
+                            <div class="checkbox-group">
+                                <div>
+                                    <input type="checkbox" id="showTechDetails">
+                                    <label for="showTechDetails">Show Technical Details</label>
+                                </div>
+                            </div>
+                            <div id="techDetails" style="display: none;">
+                                <div class="info-grid">
+                                    <div class="info-item">
+                                        <span class="info-label">Database Path</span>
+                                        <span class="info-value">HealyticaRecordDB</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <span class="info-label">Total Tables</span>
+                                        <span class="info-value">7</span>
+                                    </div>
+                                </div>
+                                <div class="form-actions">
+                                    <button type="button" class="btn btn-secondary" id="runDiagnosticsBtn">
+                                        <i class="fas fa-stethoscope"></i> Run System Diagnostics
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="main-footer">
+            <div class="footer-content">
+                <div class="footer-logo">
+                    <span class="logo-symbol">H</span>
+                    <span class="logo-text">Healytica Record</span>
+                </div>
+                <div class="footer-links">
+                    <a href="#" class="footer-link">Privacy Policy</a>
+                    <a href="#" class="footer-link">Terms of Service</a>
+                    <a href="#" class="footer-link">Help Center</a>
+                </div>
+                <div class="footer-copyright">
+                    © 2024 Healytica Record. Secure • Private • Yours.
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div class="modal" id="confirmationModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Confirm Action</h3>
+                <button class="modal-close" id="modalClose">&times;</button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                Are you sure you want to perform this action?
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="modalCancel">Cancel</button>
+                <button class="btn btn-primary" id="modalConfirm">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Message Container -->
+    <div id="messageContainer"></div>
+
+   <!-- Scripts - ORDER MATTERS! -->
+   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+   <script src="js/supabase.js"></script>
+   <script src="js/auth.js"></script>
+   <script src="js/settings.js"></script>
+
+<!-- Initialize settings when page loads -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Show loading
+    const loader = document.getElementById('loader');
+    if (loader) loader.style.display = 'flex';
+    
+    // Load settings after a small delay to ensure everything is ready
+    setTimeout(() => {
+        if (typeof window.loadSettings === 'function') {
+            window.loadSettings();
+        } else {
+            console.error('Settings functions not loaded');
+            if (loader) loader.style.display = 'none';
+        }
+    }, 100);
+});
+</script>
+</body>
+</html>
