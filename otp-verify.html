@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify OTP - Healytica Record</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/auth.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase.js"></script>
+</head>
+<body class="welcome-page">
+    <div class="video-overlay"></div>
+    
+    <video id="video-background" autoplay muted loop playsinline>
+        <source src="https://assets.mixkit.co/videos/preview/mixkit-abstract-background-with-moving-lines-33471-large.mp4" type="video/mp4">
+    </video>
+
+    <div class="logo-container">
+        <div class="logo">H</div>
+        <div class="logo-text">HEALYTICA RECORD</div>
+        <div class="tagline">Verify Your Phone</div>
+    </div>
+
+    <div class="main-auth-container">
+        <div class="auth-card">
+            <h2 id="otpTitle">Enter OTP</h2>
+            <p id="otpMessage" class="otp-message">We sent a 6-digit code to your phone</p>
+            
+            <div class="auth-form active">
+                <div class="form-group">
+                    <label for="otpCode">6-Digit Code</label>
+                    <div class="otp-input-group">
+                        <input type="text" id="otpCode" maxlength="6" placeholder="123456" 
+                               pattern="\d{6}" inputmode="numeric">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <p class="resend-text">
+                        Didn't receive code? 
+                        <a href="#" id="resendOtp">Resend OTP</a>
+                        <span id="countdown" class="countdown">(60s)</span>
+                    </p>
+                </div>
+
+                <button class="auth-btn primary" id="verifyOtpBtn">
+                    <i class="fas fa-check-circle"></i> VERIFY & CONTINUE
+                </button>
+
+                <div class="auth-switch">
+                    <a href="index.html"><i class="fas fa-arrow-left"></i> Back to Login</a>
+                </div>
+            </div>
+
+            <div id="successMessage" class="auth-form" style="display: none;">
+                <div class="success-icon">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <h3>Verification Successful!</h3>
+                <p>Your phone has been verified.</p>
+                <a href="dashboard.html" class="auth-btn primary">
+                    <i class="fas fa-tachometer-alt"></i> GO TO DASHBOARD
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div id="messageContainer"></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const verifyBtn = document.getElementById('verifyOtpBtn');
+            const otpInput = document.getElementById('otpCode');
+            const resendLink = document.getElementById('resendOtp');
+            const countdownEl = document.getElementById('countdown');
+            const otpForm = document.querySelector('.auth-form');
+            const successMessage = document.getElementById('successMessage');
+            const otpTitle = document.getElementById('otpTitle');
+            const otpMessage = document.getElementById('otpMessage');
+            
+            let countdown = 60;
+            let countdownInterval;
+            let phoneNumber = '';
+            
+            // Get phone number from URL or localStorage
+            const urlParams = new URLSearchParams(window.location.search);
+            phoneNumber = urlParams.get('phone') || localStorage.getItem('otp_phone');
+            const isRegistration = urlParams.get('type') === 'signup';
+            
+            if (phoneNumber) {
+                const maskedPhone = phoneNumber.replace(/(\d{4})\d+(\d{4})/, '$1****$2');
+                otpMessage.textContent = `We sent a 6-digit code to ${maskedPhone}`;
+            }
+            
+            if (isRegistration) {
+                otpTitle.textContent = 'Complete Registration';
+            }
+            
+            // Start countdown
+            startCountdown();
+            
+            // Verify OTP
+            verifyBtn.addEventListener('click', async function() {
+                const otp = otpInput.value.trim();
+                
+                if (!otp || otp.length !== 6) {
+                    showMessage('error', 'Please enter a valid 6-digit code');
+                    return;
+                }
+                
+                verifyBtn.disabled = true;
+                verifyBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> VERIFYING...';
+                
+                try {
+                    const { data, error } = await supabase.auth.verifyOtp({
+                        phone: phoneNumber,
+                        token: otp,
+                        type: isRegistration ? 'signup' : 'sms'
+                    });
+                    
+                    if (error) {
+                        showMessage('error', 'Invalid OTP code. Please try again.');
+                        verifyBtn.disabled = false;
+                        verifyBtn.innerHTML = '<i class="fas fa-check-circle"></i> VERIFY & CONTINUE';
+                    } else {
+                        // Success!
+                        otpForm.style.display = 'none';
+                        successMessage.style.display = 'block';
+                        
+                        // Clear OTP data
+                        localStorage.removeItem('otp_phone');
+                    }
+                } catch (error) {
+                    console.error('OTP verification error:', error);
+                    showMessage('error', 'Verification failed. Please try again.');
+                    verifyBtn.disabled = false;
+                    verifyBtn.innerHTML = '<i class="fas fa-check-circle"></i> VERIFY & CONTINUE';
+                }
+            });
+            
+            // Resend OTP
+            resendLink.addEventListener('click', async function(e) {
+                e.preventDefault();
+                
+                if (countdown > 0) {
+                    showMessage('info', `Please wait ${countdown}s before resending`);
+                    return;
+                }
+                
+                showMessage('info', 'Sending new OTP...');
+                
+                try {
+                    const { error } = await supabase.auth.signInWithOtp({
+                        phone: phoneNumber
+                    });
+                    
+                    if (error) {
+                        showMessage('error', 'Failed to resend OTP: ' + error.message);
+                    } else {
+                        showMessage('success', 'New OTP sent!');
+                        countdown = 60;
+                        startCountdown();
+                    }
+                } catch (error) {
+                    console.error('Resend OTP error:', error);
+                    showMessage('error', 'Failed to resend OTP');
+                }
+            });
+            
+            // Auto-submit when 6 digits entered
+            otpInput.addEventListener('input', function() {
+                if (this.value.length === 6) {
+                    verifyBtn.click();
+                }
+            });
+            
+            // Countdown functions
+            function startCountdown() {
+                clearInterval(countdownInterval);
+                updateCountdown();
+                countdownInterval = setInterval(updateCountdown, 1000);
+            }
+            
+            function updateCountdown() {
+                if (countdown > 0) {
+                    countdownEl.textContent = `(${countdown}s)`;
+                    resendLink.style.opacity = '0.5';
+                    resendLink.style.pointerEvents = 'none';
+                    countdown--;
+                } else {
+                    countdownEl.textContent = '';
+                    resendLink.style.opacity = '1';
+                    resendLink.style.pointerEvents = 'auto';
+                    clearInterval(countdownInterval);
+                }
+            }
+            
+            function showMessage(type, text) {
+                const container = document.getElementById('messageContainer');
+                if (!container) return;
+                
+                const message = document.createElement('div');
+                message.className = `message ${type}`;
+                message.innerHTML = `<span>${text}</span>`;
+                
+                container.appendChild(message);
+                
+                setTimeout(() => {
+                    message.remove();
+                }, 5000);
+            }
+        });
+    </script>
+</body>
+</html>

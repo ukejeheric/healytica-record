@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Health Analytics - Healytica Record</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/analytics.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js for graphs -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Load Supabase FIRST -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="analytics-page">
+    
+    <!-- Loading Spinner -->
+    <div id="loading" class="loader">
+        <div class="spinner"></div>
+        <div class="loading-text">Loading health analytics...</div>
+    </div>
+
+    <!-- Sidebar Navigation -->
+    <div class="sidebar" id="sidebar">
+        <!-- User Info -->
+        <div class="user-info">
+            <div class="user-avatar" id="userAvatar">
+                <!-- Initials will be added by JavaScript -->
+            </div>
+            <div class="user-details">
+                <div class="user-name" id="userName">Loading...</div>
+                <div class="user-status">
+                    <span class="status-dot"></span>
+                    <span>Online</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Logout Button -->
+        <button class="logout-btn" id="logoutBtn">
+            <i class="fas fa-sign-out-alt"></i>
+            <span>Logout</span>
+        </button>
+
+        <!-- Navigation Menu -->
+        <nav class="main-nav">
+            <div class="nav-section">
+                <div class="nav-header">📋 Navigation</div>
+                <a href="dashboard.html" class="nav-link">
+                    <i class="fas fa-home"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="profile.html" class="nav-link">
+                    <i class="fas fa-user"></i>
+                    <span>My Profile</span>
+                </a>
+                <a href="medications.html" class="nav-link">
+                    <i class="fas fa-pills"></i>
+                    <span>Medications</span>
+                </a>
+                <a href="lab_results.html" class="nav-link">
+                    <i class="fas fa-flask"></i>
+                    <span>Lab Results</span>
+                </a>
+                <a href="vital_signs.html" class="nav-link">
+                    <i class="fas fa-heartbeat"></i>
+                    <span>Vital Signs</span>
+                </a>
+                <a href="appointments.html" class="nav-link">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>Appointments</span>
+                </a>
+                <a href="symptoms.html" class="nav-link">
+                    <i class="fas fa-thermometer"></i>
+                    <span>Symptoms Tracker</span>
+                </a>
+                <a href="analytics.html" class="nav-link active">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>Health Analytics</span>
+                </a>
+                <a href="settings.html" class="nav-link">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </a>
+            </div>
+        </nav>
+
+        <!-- Quick Stats -->
+        <div class="quick-stats">
+            <div class="stat-item">
+                <div class="stat-value" id="healthScore">--</div>
+                <div class="stat-label">Health Score</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="dataPoints">0</div>
+                <div class="stat-label">Data Points</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile Menu Toggle -->
+    <button class="menu-toggle" id="menuToggle">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <!-- Main Content -->
+    <div class="main-content" id="analyticsPage">
+        <!-- Header -->
+        <header class="main-header">
+            <div class="header-left">
+                <h1>Comprehensive Health Analytics</h1>
+                <p class="header-subtitle">Data-driven insights for better health decisions</p>
+            </div>
+            <div class="header-right">
+                <div class="date-display" id="currentDate">Loading...</div>
+                <button class="refresh-btn" id="refreshAnalyticsBtn">
+                    <i class="fas fa-sync-alt"></i>
+                    <span>Refresh</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Messages Container -->
+        <div id="messages" class="messages-container"></div>
+
+        <!-- Analytics Tabs -->
+        <div class="analytics-tabs-container">
+            <div class="analytics-tabs">
+                <button class="analytics-tab active" data-tab="dashboard">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span>Health Dashboard</span>
+                </button>
+                <button class="analytics-tab" data-tab="trends">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Trend Analysis</span>
+                </button>
+                <button class="analytics-tab" data-tab="risk">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span>Risk Assessment</span>
+                </button>
+                <button class="analytics-tab" data-tab="wellness">
+                    <i class="fas fa-star"></i>
+                    <span>Wellness Score</span>
+                </button>
+                <button class="analytics-tab" data-tab="reports">
+                    <i class="fas fa-file-medical"></i>
+                    <span>Reports</span>
+                </button>
+                <button class="analytics-tab" data-tab="insights">
+                    <i class="fas fa-brain"></i>
+                    <span>AI Insights</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Analytics Content -->
+        <div class="analytics-content">
+            <!-- Tab 1: Health Dashboard -->
+            <div class="analytics-tab-content active" id="dashboardTab">
+                <div class="tab-header">
+                    <h2><i class="fas fa-tachometer-alt"></i> Health Dashboard</h2>
+                    <div class="tab-actions">
+                        <button class="action-btn" id="exportDashboardBtn">
+                            <i class="fas fa-download"></i> Export Dashboard
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Real-time Health Alerts -->
+                <div class="alerts-section">
+                    <h3>⚡ Real-time Health Alerts</h3>
+                    <div class="alerts-container" id="healthAlerts">
+                        <div class="alert-item loading">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <span>Loading alerts...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Overall Health Score -->
+                <div class="health-score-section">
+                    <h3>🎯 Overall Health Score & Metrics</h3>
+                    <div class="score-container">
+                        <div class="health-score-card">
+                            <div class="score-display" id="overallHealthScore">--</div>
+                            <div class="score-label">Overall Health Score</div>
+                            <div class="score-status" id="healthScoreStatus">Calculating...</div>
+                        </div>
+                        
+                        <div class="health-metrics">
+                            <div class="health-metric">
+                                <div class="metric-value" id="vitalScore">--</div>
+                                <div class="metric-label">Vital Signs</div>
+                                <div class="metric-progress">
+                                    <div class="progress-bar" id="vitalProgress"></div>
+                                </div>
+                            </div>
+                            <div class="health-metric">
+                                <div class="metric-value" id="labScore">--</div>
+                                <div class="metric-label">Lab Results</div>
+                                <div class="metric-progress">
+                                    <div class="progress-bar" id="labProgress"></div>
+                                </div>
+                            </div>
+                            <div class="health-metric">
+                                <div class="metric-value" id="medScore">--</div>
+                                <div class="metric-label">Medication</div>
+                                <div class="metric-progress">
+                                    <div class="progress-bar" id="medProgress"></div>
+                                </div>
+                            </div>
+                            <div class="health-metric">
+                                <div class="metric-value" id="lifestyleScore">--</div>
+                                <div class="metric-label">Lifestyle</div>
+                                <div class="metric-progress">
+                                    <div class="progress-bar" id="lifestyleProgress"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Key Health Metrics -->
+                <div class="key-metrics-section">
+                    <h3>📊 Key Health Metrics</h3>
+                    <div class="metrics-grid">
+                        <!-- Blood Pressure Metrics -->
+                        <div class="metric-card detailed">
+                            <div class="metric-header">
+                                <div class="metric-icon bg-danger">
+                                    <i class="fas fa-heart"></i>
+                                </div>
+                                <div class="metric-title">Blood Pressure</div>
+                                <div class="metric-trend" id="bpAnalyticsTrend">→</div>
+                            </div>
+                            <div class="metric-details">
+                                <div class="metric-main-value" id="bpAnalyticsValue">--/--</div>
+                                <div class="metric-secondary">
+                                    <div class="metric-item">
+                                        <span class="label">Systolic Avg:</span>
+                                        <span class="value" id="avgSystolic">--</span>
+                                    </div>
+                                    <div class="metric-item">
+                                        <span class="label">Diastolic Avg:</span>
+                                        <span class="value" id="avgDiastolic">--</span>
+                                    </div>
+                                    <div class="metric-item">
+                                        <span class="label">Variability:</span>
+                                        <span class="value" id="bpVariability">--</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="metric-chart-small">
+                                <canvas id="bpAnalyticsChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Heart Rate Metrics -->
+                        <div class="metric-card detailed">
+                            <div class="metric-header">
+                                <div class="metric-icon bg-success">
+                                    <i class="fas fa-heartbeat"></i>
+                                </div>
+                                <div class="metric-title">Heart Rate</div>
+                                <div class="metric-trend" id="hrAnalyticsTrend">→</div>
+                            </div>
+                            <div class="metric-details">
+                                <div class="metric-main-value" id="hrAnalyticsValue">-- bpm</div>
+                                <div class="metric-secondary">
+                                    <div class="metric-item">
+                                        <span class="label">Resting Avg:</span>
+                                        <span class="value" id="avgHeartRate">--</span>
+                                    </div>
+                                    <div class="metric-item">
+                                        <span class="label">Variability:</span>
+                                        <span class="value" id="hrVariability">--</span>
+                                    </div>
+                                    <div class="metric-item">
+                                        <span class="label">Target Zone:</span>
+                                        <span class="value">60-100</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="metric-chart-small">
+                                <canvas id="hrAnalyticsChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Glucose Metrics -->
+                        <div class="metric-card detailed">
+                            <div class="metric-header">
+                                <div class="metric-icon bg-primary">
+                                    <i class="fas fa-tint"></i>
+                                </div>
+                                <div class="metric-title">Glucose</div>
+                                <div class="metric-trend" id="glucoseAnalyticsTrend">→</div>
+                            </div>
+                            <div class="metric-details">
+                                <div class="metric-main-value" id="glucoseAnalyticsValue">-- mg/dL</div>
+                                <div class="metric-secondary">
+                                    <div class="metric-item">
+                                        <span class="label">FBS Avg:</span>
+                                        <span class="value" id="avgGlucose">--</span>
+                                    </div>
+                                    <div class="metric-item">
+                                        <span class="label">HbA1c:</span>
+                                        <span class="value" id="hba1cValue">--</span>
+                                    </div>
+                                    <div class="metric-item">
+                                        <span class="label">Cholesterol:</span>
+                                        <span class="value" id="cholesterolValue">--</span>
+                                    </div>
+                                    <!-- In the Glucose Metrics section, add this line -->
+                                     <div class="metric-item">
+                                         <span class="label">Control:</span>
+                                         <span class="value" id="glucoseControl">--</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="metric-chart-small">
+                                <canvas id="glucoseAnalyticsChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Oxygen Saturation Metrics -->
+                        <div class="metric-card detailed">
+                            <div class="metric-header">
+                                <div class="metric-icon bg-info">
+                                    <i class="fas fa-lungs"></i>
+                                </div>
+                                <div class="metric-title">Oxygen Saturation</div>
+                                <div class="metric-trend" id="oxygenAnalyticsTrend">→</div>
+                            </div>
+                            <div class="metric-details">
+                                <div class="metric-main-value" id="oxygenAnalyticsValue">--%</div>
+                                <div class="metric-secondary">
+                                    <div class="metric-item">
+                                        <span class="label">Average:</span>
+                                        <span class="value" id="avgOxygen">--%</span>
+                                    </div>
+                                    <div class="metric-item">
+                                        <span class="label">Status:</span>
+                                        <span class="value" id="oxygenStatus">--</span>
+                                    </div>
+                                    <div class="metric-item">
+                                        <span class="label">Target:</span>
+                                        <span class="value">≥95%</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="metric-chart-small">
+                                <canvas id="oxygenAnalyticsChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- BMI & Weight Metrics -->
+                        <div class="metric-card detailed">
+                            <div class="metric-header">
+                                <div class="metric-icon bg-purple">
+                                    <i class="fas fa-weight"></i>
+                                </div>
+                                <div class="metric-title">Weight & BMI</div>
+                                <div class="metric-trend" id="bmiAnalyticsTrend">→</div>
+                            </div>
+                            <div class="metric-details">
+                                <div class="metric-main-value" id="bmiAnalyticsValue">--</div>
+                                <div class="metric-secondary">
+                                    <div class="metric-item">
+                                        <span class="label">Current Weight:</span>
+                                        <span class="value" id="currentWeight">-- kg</span>
+                                    </div>
+                                    <div class="metric-item">
+                                        <span class="label">Change:</span>
+                                        <span class="value" id="weightChange">-- kg</span>
+                                    </div>
+                                    <div class="metric-item">
+                                        <span class="label">Category:</span>
+                                        <span class="value" id="bmiCategory">--</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="metric-chart-small">
+                                <canvas id="weightAnalyticsChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Health Dimensions Radar -->
+                <div class="radar-section">
+                    <h3>📈 Health Dimensions Overview</h3>
+                    <div class="radar-container">
+                        <canvas id="healthRadarChart"></canvas>
+                        <div class="radar-legend" id="radarLegend">
+                            <!-- Legend will be populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity Timeline -->
+                <div class="timeline-section">
+                    <h3>📅 Recent Health Activity Timeline</h3>
+                    <div class="timeline-container" id="activityTimeline">
+                        <!-- Timeline items will be added here -->
+                        <div class="timeline-loading">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <span>Loading timeline...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 2: Trend Analysis -->
+            <div class="analytics-tab-content" id="trendsTab">
+                <div class="tab-header">
+                    <h2><i class="fas fa-chart-line"></i> Trend Analysis</h2>
+                    <div class="tab-actions">
+                        <div class="trend-controls">
+                            <select id="trendParameter" class="trend-select">
+                                <option value="blood_pressure">Blood Pressure</option>
+                                <option value="heart_rate">Heart Rate</option>
+                                <option value="glucose">Glucose</option>
+                                <option value="weight">Weight</option>
+                                <option value="cholesterol">Cholesterol</option>
+                                <option value="oxygen">Oxygen Saturation</option>
+                            </select>
+                            <select id="trendPeriod" class="trend-select">
+                                <option value="7">Last 7 days</option>
+                                <option value="30" selected>Last 30 days</option>
+                                <option value="90">Last 3 months</option>
+                                <option value="180">Last 6 months</option>
+                                <option value="365">Last year</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Multi-Parameter Trends -->
+                <div class="trend-section">
+                    <h3>🔄 Multi-Parameter Trends</h3>
+                    <div class="trend-chart-container">
+                        <canvas id="multiTrendChart"></canvas>
+                    </div>
+                    <div class="trend-stats">
+                        <div class="trend-stat">
+                            <div class="stat-label">Correlation Strength</div>
+                            <div class="stat-value" id="correlationStrength">--</div>
+                        </div>
+                        <div class="trend-stat">
+                            <div class="stat-label">Trend Direction</div>
+                            <div class="stat-value" id="trendDirection">--</div>
+                        </div>
+                        <div class="trend-stat">
+                            <div class="stat-label">Data Points</div>
+                            <div class="stat-value" id="trendDataPoints">0</div>
+                        </div>
+                        <div class="trend-stat">
+                            <div class="stat-label">Last Updated</div>
+                            <div class="stat-value" id="trendLastUpdated">--</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Correlation Analysis -->
+                <div class="correlation-section">
+                    <h3>🔗 Correlation Analysis</h3>
+                    <div class="correlation-container">
+                        <div class="correlation-chart">
+                            <canvas id="correlationChart"></canvas>
+                        </div>
+                        <div class="correlation-insights">
+                            <h4>📊 Correlation Insights</h4>
+                            <div class="insights-list" id="correlationInsights">
+                                <div class="insight-item">
+                                    <i class="fas fa-spinner fa-spin"></i>
+                                    <span>Analyzing correlations...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pattern Detection -->
+                <div class="pattern-section">
+                    <h3>🎯 Pattern Detection</h3>
+                    <div class="pattern-container">
+                        <div class="pattern-card">
+                            <div class="pattern-icon">
+                                <i class="fas fa-calendar-alt"></i>
+                            </div>
+                            <div class="pattern-content">
+                                <h4>Seasonal Patterns</h4>
+                                <div class="pattern-details" id="seasonalPatterns">
+                                    <p>Analyzing seasonal trends...</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="pattern-card">
+                            <div class="pattern-icon">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <div class="pattern-content">
+                                <h4>Time-based Patterns</h4>
+                                <div class="pattern-details" id="timePatterns">
+                                    <p>Analyzing time-based trends...</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="pattern-card">
+                            <div class="pattern-icon">
+                                <i class="fas fa-project-diagram"></i>
+                            </div>
+                            <div class="pattern-content">
+                                <h4>Relationship Patterns</h4>
+                                <div class="pattern-details" id="relationshipPatterns">
+                                    <p>Analyzing relationships...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Statistical Summary -->
+                <div class="stats-section">
+                    <h3>📈 Statistical Summary</h3>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-title">Mean (Average)</div>
+                            <div class="stat-value" id="statMean">--</div>
+                            <div class="stat-desc">Central tendency</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-title">Median</div>
+                            <div class="stat-value" id="statMedian">--</div>
+                            <div class="stat-desc">Middle value</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-title">Standard Deviation</div>
+                            <div class="stat-value" id="statStdDev">--</div>
+                            <div class="stat-desc">Variability measure</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-title">Range</div>
+                            <div class="stat-value" id="statRange">--</div>
+                            <div class="stat-desc">Min to Max spread</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 3: Risk Assessment -->
+            <div class="analytics-tab-content" id="riskTab">
+                <div class="tab-header">
+                    <h2><i class="fas fa-exclamation-triangle"></i> Risk Assessment</h2>
+                    <div class="tab-actions">
+                        <button class="action-btn secondary" id="generateRiskReportBtn">
+                            <i class="fas fa-file-medical"></i> Generate Risk Report
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Overall Risk Profile -->
+                <div class="risk-profile-section">
+                    <h3>📊 Overall Risk Profile</h3>
+                    <div class="risk-container">
+                        <div class="risk-gauge">
+                            <canvas id="riskGaugeChart"></canvas>
+                        </div>
+                        <div class="risk-details">
+                            <div class="risk-level" id="riskLevel">--</div>
+                            <div class="risk-description" id="riskDescription">
+                                Calculating risk assessment...
+                            </div>
+                            <div class="risk-factors">
+                                <h4>Identified Risk Factors:</h4>
+                                <ul id="riskFactorsList">
+                                    <li>Loading risk factors...</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Risk Categories -->
+                <div class="risk-categories-section">
+                    <h3>🔍 Risk Breakdown by Category</h3>
+                    <div class="risk-categories">
+                        <div class="risk-category-card cardiovascular">
+                            <div class="category-header">
+                                <i class="fas fa-heart"></i>
+                                <h4>Cardiovascular</h4>
+                            </div>
+                            <div class="category-score">
+                                <div class="score-value" id="cvRiskScore">--</div>
+                                <div class="score-label">Risk Score</div>
+                            </div>
+                            <div class="category-factors" id="cvRiskFactors">
+                                <p>Analyzing...</p>
+                            </div>
+                            <div class="category-status" id="cvRiskStatus">--</div>
+                        </div>
+
+                        <div class="risk-category-card diabetes">
+                            <div class="category-header">
+                                <i class="fas fa-tint"></i>
+                                <h4>Diabetes</h4>
+                            </div>
+                            <div class="category-score">
+                                <div class="score-value" id="diabetesRiskScore">--</div>
+                                <div class="score-label">Risk Score</div>
+                            </div>
+                            <div class="category-factors" id="diabetesRiskFactors">
+                                <p>Analyzing...</p>
+                            </div>
+                            <div class="category-status" id="diabetesRiskStatus">--</div>
+                        </div>
+
+                        <div class="risk-category-card hypertension">
+                            <div class="category-header">
+                                <i class="fas fa-heartbeat"></i>
+                                <h4>Hypertension</h4>
+                            </div>
+                            <div class="category-score">
+                                <div class="score-value" id="hypertensionRiskScore">--</div>
+                                <div class="score-label">Risk Score</div>
+                            </div>
+                            <div class="category-factors" id="hypertensionRiskFactors">
+                                <p>Analyzing...</p>
+                            </div>
+                            <div class="category-status" id="hypertensionRiskStatus">--</div>
+                        </div>
+
+                        <div class="risk-category-card obesity">
+                            <div class="category-header">
+                                <i class="fas fa-weight"></i>
+                                <h4>Obesity</h4>
+                            </div>
+                            <div class="category-score">
+                                <div class="score-value" id="obesityRiskScore">--</div>
+                                <div class="score-label">Risk Score</div>
+                            </div>
+                            <div class="category-factors" id="obesityRiskFactors">
+                                <p>Analyzing...</p>
+                            </div>
+                            <div class="category-status" id="obesityRiskStatus">--</div>
+                        </div>
+
+                        <div class="risk-category-card respiratory">
+                            <div class="category-header">
+                                <i class="fas fa-lungs"></i>
+                                <h4>Respiratory</h4>
+                            </div>
+                            <div class="category-score">
+                                <div class="score-value" id="respiratoryRiskScore">--</div>
+                                <div class="score-label">Risk Score</div>
+                            </div>
+                            <div class="category-factors" id="respiratoryRiskFactors">
+                                <p>Analyzing...</p>
+                            </div>
+                            <div class="category-status" id="respiratoryRiskStatus">--</div>
+                        </div>
+
+                        <div class="risk-category-card mental">
+                            <div class="category-header">
+                                <i class="fas fa-brain"></i>
+                                <h4>Mental Health</h4>
+                            </div>
+                            <div class="category-score">
+                                <div class="score-value" id="mentalRiskScore">--</div>
+                                <div class="score-label">Risk Score</div>
+                            </div>
+                            <div class="category-factors" id="mentalRiskFactors">
+                                <p>Analyzing...</p>
+                            </div>
+                            <div class="category-status" id="mentalRiskStatus">--</div>
+                        </div>
+
+                        <div class="risk-category-card kidney">
+                            <div class="category-header">
+                                <i class="fas fa-filter"></i>
+                                <h4>Kidney Health</h4>
+                            </div>
+                            <div class="category-score">
+                                <div class="score-value" id="kidneyRiskScore">--</div>
+                                <div class="score-label">Risk Score</div>
+                            </div>
+                            <div class="category-factors" id="kidneyRiskFactors">
+                                <p>Analyzing...</p>
+                            </div>
+                            <div class="category-status" id="kidneyRiskStatus">--</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Personalized Action Plan -->
+                <div class="action-plan-section">
+                    <h3>💡 Personalized Risk Reduction Action Plan</h3>
+                    <div class="action-plan-container" id="actionPlanContainer">
+                        <div class="action-plan-loading">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <span>Creating personalized action plan...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 4: Wellness Score -->
+            <div class="analytics-tab-content" id="wellnessTab">
+                <div class="tab-header">
+                    <h2><i class="fas fa-star"></i> Wellness Score</h2>
+                    <div class="tab-actions">
+                        <button class="action-btn" id="trackProgressBtn">
+                            <i class="fas fa-chart-line"></i> Track Progress
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Wellness Evolution -->
+                <div class="wellness-evolution-section">
+                    <h3>📈 Wellness Evolution Over Time</h3>
+                    <div class="evolution-chart-container">
+                        <canvas id="wellnessEvolutionChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Sleep & Mood Analysis -->
+                <div class="sleep-mood-section">
+                    <h3>😴 Sleep & Mood Analysis</h3>
+                    <div class="sleep-mood-container">
+                        <div class="analysis-card">
+                            <div class="analysis-header">
+                                <i class="fas fa-bed"></i>
+                                <h4>Sleep Quality Analysis</h4>
+                            </div>
+                            <div class="analysis-content" id="sleepAnalysis">
+                                <p>Loading sleep analysis...</p>
+                            </div>
+                        </div>
+                        <div class="analysis-card">
+                            <div class="analysis-header">
+                                <i class="fas fa-smile"></i>
+                                <h4>Mood Analysis</h4>
+                            </div>
+                            <div class="analysis-content" id="moodAnalysis">
+                                <p>Loading mood analysis...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Wellness Dimensions -->
+                <div class="wellness-dimensions-section">
+                    <h3>🎯 Wellness Dimensions Breakdown</h3>
+                    <div class="dimensions-container">
+                        <div class="dimension-card">
+                            <div class="dimension-header">
+                                <i class="fas fa-heartbeat"></i>
+                                <h4>Physical Health</h4>
+                            </div>
+                            <div class="dimension-score" id="physicalHealthScore">--</div>
+                            <div class="dimension-progress">
+                                <div class="progress-bar" id="physicalHealthProgress"></div>
+                            </div>
+                            <div class="dimension-tips" id="physicalHealthTips">
+                                <p>Loading tips...</p>
+                            </div>
+                        </div>
+
+                        <div class="dimension-card">
+                            <div class="dimension-header">
+                                <i class="fas fa-brain"></i>
+                                <h4>Mental Wellness</h4>
+                            </div>
+                            <div class="dimension-score" id="mentalWellnessScore">--</div>
+                            <div class="dimension-progress">
+                                <div class="progress-bar" id="mentalWellnessProgress"></div>
+                            </div>
+                            <div class="dimension-tips" id="mentalWellnessTips">
+                                <p>Loading tips...</p>
+                            </div>
+                        </div>
+
+                        <div class="dimension-card">
+                            <div class="dimension-header">
+                                <i class="fas fa-apple-alt"></i>
+                                <h4>Nutrition</h4>
+                            </div>
+                            <div class="dimension-score" id="nutritionScore">--</div>
+                            <div class="dimension-progress">
+                                <div class="progress-bar" id="nutritionProgress"></div>
+                            </div>
+                            <div class="dimension-tips" id="nutritionTips">
+                                <p>Loading tips...</p>
+                            </div>
+                        </div>
+
+                        <div class="dimension-card">
+                            <div class="dimension-header">
+                                <i class="fas fa-running"></i>
+                                <h4>Fitness</h4>
+                            </div>
+                            <div class="dimension-score" id="fitnessScore">--</div>
+                            <div class="dimension-progress">
+                                <div class="progress-bar" id="fitnessProgress"></div>
+                            </div>
+                            <div class="dimension-tips" id="fitnessTips">
+                                <p>Loading tips...</p>
+                            </div>
+                        </div>
+
+                        <div class="dimension-card">
+                            <div class="dimension-header">
+                                <i class="fas fa-bed"></i>
+                                <h4>Sleep Quality</h4>
+                            </div>
+                            <div class="dimension-score" id="sleepScore">--</div>
+                            <div class="dimension-progress">
+                                <div class="progress-bar" id="sleepProgress"></div>
+                            </div>
+                            <div class="dimension-tips" id="sleepTips">
+                                <p>Loading tips...</p>
+                            </div>
+                        </div>
+
+                        <div class="dimension-card">
+                            <div class="dimension-header">
+                                <i class="fas fa-spa"></i>
+                                <h4>Stress Management</h4>
+                            </div>
+                            <div class="dimension-score" id="stressScore">--</div>
+                            <div class="dimension-progress">
+                                <div class="progress-bar" id="stressProgress"></div>
+                            </div>
+                            <div class="dimension-tips" id="stressTips">
+                                <p>Loading tips...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Personalized Goals -->
+                <div class="wellness-goals-section">
+                    <h3>🎯 Personalized Wellness Goals</h3>
+                    <div class="goals-container" id="wellnessGoalsContainer">
+                        <div class="goal-loading">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <span>Setting up personalized goals...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 5: Reports -->
+            <div class="analytics-tab-content" id="reportsTab">
+                <div class="tab-header">
+                    <h2><i class="fas fa-file-medical"></i> Health Reports</h2>
+                    <div class="tab-actions">
+                        <div class="report-controls">
+                            <select id="reportType" class="report-select">
+                                <option value="summary">Comprehensive Health Summary</option>
+                                <option value="vitals">Vital Signs Report</option>
+                                <option value="labs">Lab Results Report</option>
+                                <option value="medications">Medication History Report</option>
+                                <option value="symptoms">Symptom Analysis Report</option>
+                                <option value="wellness">Wellness Report</option>
+                            </select>
+                            <input type="date" id="reportStartDate" class="report-date">
+                            <input type="date" id="reportEndDate" class="report-date">
+                            <button class="action-btn" id="generateReportBtn">
+                                <i class="fas fa-file-download"></i> Generate Report
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Report Content -->
+                <div class="report-content-section">
+                    <div class="report-content-container" id="reportContent">
+                        <div class="report-placeholder">
+                            <i class="fas fa-file-medical-alt"></i>
+                            <h4>No report generated yet</h4>
+                            <p>Select report type, date range, and click "Generate Report" to create a health report.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Export Options -->
+                <div class="export-section">
+                    <h3>📤 Export Options</h3>
+                    <div class="export-options">
+                        <button class="export-btn" id="exportPdfBtn">
+                            <i class="fas fa-file-pdf"></i>
+                            <span>Export as PDF</span>
+                        </button>
+                        <button class="export-btn" id="exportCsvBtn">
+                            <i class="fas fa-file-csv"></i>
+                            <span>Export as CSV</span>
+                        </button>
+                        <button class="export-btn" id="exportJsonBtn">
+                            <i class="fas fa-file-code"></i>
+                            <span>Export as JSON</span>
+                        </button>
+                        <button class="export-btn" id="shareProviderBtn">
+                            <i class="fas fa-share-medical"></i>
+                            <span>Share with Provider</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 6: AI Insights -->
+            <div class="analytics-tab-content" id="insightsTab">
+                <div class="tab-header">
+                    <h2><i class="fas fa-brain"></i> AI Health Insights</h2>
+                    <div class="tab-actions">
+                        <button class="action-btn" id="refreshInsightsBtn">
+                            <i class="fas fa-sync-alt"></i> Refresh Insights
+                        </button>
+                    </div>
+                </div>
+
+                <!-- AI Insights Container -->
+                <div class="ai-insights-section">
+                    <div class="insights-container" id="insightsContainer">
+                        <div class="insights-loading">
+                            <i class="fas fa-brain fa-spin"></i>
+                            <p>Analyzing your health data to generate insights...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Data Completeness -->
+                <div class="data-completeness-section">
+                    <h3>📊 Data Completeness Analysis</h3>
+                    <div class="completeness-container">
+                        <div class="completeness-chart">
+                            <canvas id="dataCompletenessChart"></canvas>
+                        </div>
+                        <div class="completeness-details">
+                            <h4>📈 Data Collection Progress</h4>
+                            <div class="data-categories">
+                                <div class="data-category">
+                                    <span class="category-name">Vital Signs</span>
+                                    <div class="progress-bar-container">
+                                        <div class="progress-bar" id="vitalSignsProgress" style="width: 0%"></div>
+                                    </div>
+                                    <span class="percentage" id="vitalSignsPercentage">0%</span>
+                                </div>
+                                <div class="data-category">
+                                    <span class="category-name">Lab Results</span>
+                                    <div class="progress-bar-container">
+                                        <div class="progress-bar" id="labResultsProgress" style="width: 0%"></div>
+                                    </div>
+                                    <span class="percentage" id="labResultsPercentage">0%</span>
+                                </div>
+                                <div class="data-category">
+                                    <span class="category-name">Medications</span>
+                                    <div class="progress-bar-container">
+                                        <div class="progress-bar" id="medicationsProgress" style="width: 0%"></div>
+                                    </div>
+                                    <span class="percentage" id="medicationsPercentage">0%</span>
+                                </div>
+                                <div class="data-category">
+                                    <span class="category-name">Symptoms</span>
+                                    <div class="progress-bar-container">
+                                        <div class="progress-bar" id="symptomsProgress" style="width: 0%"></div>
+                                    </div>
+                                    <span class="percentage" id="symptomsPercentage">0%</span>
+                                </div>
+                                <div class="data-category">
+                                    <span class="category-name">Journal Entries</span>
+                                    <div class="progress-bar-container">
+                                        <div class="progress-bar" id="journalProgress" style="width: 0%"></div>
+                                    </div>
+                                    <span class="percentage" id="journalPercentage">0%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Future AI Features -->
+                <div class="future-features-section">
+                    <h3>🚀 Future AI Features</h3>
+                    <div class="features-grid">
+                        <div class="feature-card">
+                            <div class="feature-icon">
+                                <i class="fas fa-bullseye"></i>
+                            </div>
+                            <h4>Predictive Analytics</h4>
+                            <ul>
+                                <li>Symptom flare-up predictions</li>
+                                <li>Medication effectiveness forecasting</li>
+                                <li>Health trend projections</li>
+                            </ul>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">
+                                <i class="fas fa-search"></i>
+                            </div>
+                            <h4>Advanced Pattern Recognition</h4>
+                            <ul>
+                                <li>Hidden correlation discovery</li>
+                                <li>Seasonal health patterns</li>
+                                <li>Lifestyle impact analysis</li>
+                            </ul>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">
+                                <i class="fas fa-user-md"></i>
+                            </div>
+                            <h4>Personalized Recommendations</h4>
+                            <ul>
+                                <li>Customized treatment plans</li>
+                                <li>Lifestyle optimization</li>
+                                <li>Preventive care strategies</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase.js"></script>
+    <script src="js/app.js"></script>
+    <script src="js/analytics.js"></script>
+</body>
+</html>

@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vital Signs - Healytica Record</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/vital_signs.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+/* FIX 15: Single source of truth for loader — JS controls display via inline style */
+#loader { display: none; }
+
+/* Table action buttons */
+.table-actions { display: flex; gap: 6px; }
+.action-btn {
+    width: 32px; height: 32px; border: none; border-radius: 6px;
+    background: #f8f9fa; color: #666; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+}
+.view-btn:hover   { background: #0078D4; color: white; }
+.edit-btn:hover   { background: #ffc107; color: white; }
+.delete-btn:hover { background: #dc3545; color: white; }
+
+/* BP value colour coding */
+.bp-value.normal   { color: #28a745; font-weight: 600; }
+.bp-value.elevated { color: #ffc107; font-weight: 600; }
+.bp-value.stage1   { color: #fd7e14; font-weight: 600; }
+.bp-value.stage2   { color: #dc3545; font-weight: 600; }
+.bp-value.crisis   { color: #c92a2a; font-weight: 700; }
+.bp-value.low      { color: #17a2b8; font-weight: 600; }
+
+/* Status indicator colours */
+.status-indicator.normal    { background: #28a745; }
+.status-indicator.elevated  { background: #ffc107; color: #333; }
+.status-indicator.stage1    { background: #fd7e14; }
+.status-indicator.stage2    { background: #dc3545; }
+.status-indicator.crisis    { background: #c92a2a; animation: pulse 1s infinite; }
+.status-indicator.low       { background: #17a2b8; }
+@keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.6;} }
+
+/* Value status colours */
+.value-status.normal      { color: #28a745; }
+.value-status.high        { color: #dc3545; }
+.value-status.low         { color: #17a2b8; }
+.value-status.underweight { color: #0078D4; }
+.value-status.overweight  { color: #ffc107; }
+.value-status.obese1,.value-status.obese2,.value-status.obese3 { color: #dc3545; }
+
+/* Today's vitals items */
+.today-vital-item { display:flex;align-items:center;gap:15px;padding:12px 15px;background:#f8f9fa;border-radius:8px;margin-bottom:8px;border-left:4px solid #1e3c72; }
+
+/* Message container */
+#messageContainer { position:fixed; bottom:20px; right:20px; z-index:9999; }
+    </style>
+</head>
+<body class="dashboard-page">
+
+    <div id="loader" class="loader">
+        <div class="spinner"></div>
+        <div class="loading-text">Loading vital signs data...</div>
+    </div>
+
+    <div class="sidebar" id="sidebar">
+        <div class="user-info">
+            <div class="user-avatar" id="userAvatar"></div>
+            <div class="user-details">
+                <div class="user-name" id="userName">Loading...</div>
+                <div class="user-status"><span class="status-dot"></span><span>Online</span></div>
+            </div>
+        </div>
+
+        <button class="logout-btn" id="logoutBtn">
+            <i class="fas fa-sign-out-alt"></i><span>Logout</span>
+        </button>
+
+        <nav class="main-nav">
+            <div class="nav-section">
+                <div class="nav-header">📋 Navigation</div>
+                <a href="dashboard.html"    class="nav-link"><i class="fas fa-home"></i><span>Dashboard</span></a>
+                <a href="profile.html"      class="nav-link"><i class="fas fa-user"></i><span>My Profile</span></a>
+                <a href="medications.html"  class="nav-link"><i class="fas fa-pills"></i><span>Medications</span></a>
+                <a href="lab_results.html"  class="nav-link"><i class="fas fa-flask"></i><span>Lab Results</span></a>
+                <a href="vital_signs.html"  class="nav-link active"><i class="fas fa-heartbeat"></i><span>Vital Signs</span></a>
+                <a href="appointments.html" class="nav-link"><i class="fas fa-calendar-alt"></i><span>Appointments</span></a>
+                <a href="symptoms.html"     class="nav-link"><i class="fas fa-thermometer"></i><span>Symptoms Tracker</span></a>
+                <a href="analytics.html"    class="nav-link"><i class="fas fa-chart-bar"></i><span>Health Analytics</span></a>
+                <a href="settings.html"     class="nav-link"><i class="fas fa-cog"></i><span>Settings</span></a>
+            </div>
+        </nav>
+
+        <div class="quick-stats">
+            <div class="stat-item"><div class="stat-value" id="totalVitalsCount">0</div><div class="stat-label">Total Records</div></div>
+            <div class="stat-item"><div class="stat-value" id="todayVitalsCount">0</div><div class="stat-label">Today</div></div>
+            <div class="stat-item"><div class="stat-value" id="avgBpSidebar">--/--</div><div class="stat-label">Avg BP</div></div>
+        </div>
+    </div>
+
+    <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
+
+    <div class="main-content">
+        <header class="main-header">
+            <div class="header-left">
+                <h1>📈 Vital Signs Monitoring</h1>
+                <p class="header-subtitle">Track and monitor your vital health parameters</p>
+            </div>
+            <div class="header-right">
+                <div class="date-display" id="currentDate">Loading...</div>
+                <button class="refresh-btn" id="refreshBtn">
+                    <i class="fas fa-sync-alt"></i><span>Refresh</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Tabs -->
+        <div class="content-tabs">
+            <div class="tabs-container">
+                <button class="tab-btn active" data-tab="record">➕ Record Vitals</button>
+                <button class="tab-btn" data-tab="history">📋 Vital History</button>
+                <button class="tab-btn" data-tab="analysis">📊 Trend Analysis</button>
+                <button class="tab-btn" data-tab="tools">🛠️ Clinical Tools</button>
+                <button class="tab-btn" data-tab="quick">⚡ Quick Entry</button>
+            </div>
+        </div>
+
+        <div class="tab-content-container">
+
+            <!-- Tab 1: Record Vitals -->
+            <div id="record-tab" class="tab-content active">
+                <div class="section-header">
+                    <h2>🩺 Record New Vital Signs</h2>
+                    <p class="section-subtitle">Comprehensive vital signs entry with clinical insights</p>
+                </div>
+
+                <form id="vitalsForm" class="vitals-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="recordDate"><i class="fas fa-calendar"></i> Record Date *</label>
+                            <input type="date" id="recordDate" name="recordDate" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="recordTime"><i class="fas fa-clock"></i> Record Time *</label>
+                            <input type="time" id="recordTime" name="recordTime" required>
+                        </div>
+                    </div>
+
+                    <!-- Blood Pressure -->
+                    <div class="form-section">
+                        <div class="section-title">
+                            <i class="fas fa-heart"></i> Blood Pressure
+                            <span class="status-indicator" id="bpStatusIndicator">No data</span>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="bpSystolic">Systolic (mmHg) *</label>
+                                <div class="input-with-unit">
+                                    <input type="number" id="bpSystolic" name="bpSystolic" min="50" max="300" step="1" placeholder="120">
+                                    <span class="unit">mmHg</span>
+                                </div>
+                                <div class="input-help">Normal: 90–120 mmHg</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="bpDiastolic">Diastolic (mmHg) *</label>
+                                <div class="input-with-unit">
+                                    <input type="number" id="bpDiastolic" name="bpDiastolic" min="30" max="200" step="1" placeholder="80">
+                                    <span class="unit">mmHg</span>
+                                </div>
+                                <div class="input-help">Normal: 60–80 mmHg</div>
+                            </div>
+                            <div class="form-group">
+                                <label>Mean Arterial Pressure (MAP)</label>
+                                <div class="calculated-value">
+                                    <span id="mapValue">--</span>
+                                    <span class="unit">mmHg</span>
+                                </div>
+                                <div class="value-status" id="mapStatus">Normal: 70–100 mmHg</div>
+                            </div>
+                        </div>
+                        <div class="bp-classification">
+                            <div class="classification-card normal"><div class="classification-title">Normal</div><div class="classification-range">&lt; 120/80</div></div>
+                            <div class="classification-card elevated"><div class="classification-title">Elevated</div><div class="classification-range">120–129/&lt;80</div></div>
+                            <div class="classification-card hypertension1"><div class="classification-title">Stage 1</div><div class="classification-range">130–139/80–89</div></div>
+                            <div class="classification-card hypertension2"><div class="classification-title">Stage 2</div><div class="classification-range">≥140/≥90</div></div>
+                        </div>
+                    </div>
+
+                    <!-- Heart Rate & Respiratory -->
+                    <div class="form-section">
+                        <div class="section-title"><i class="fas fa-heartbeat"></i> Heart Rate & Respiratory</div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="heartRate">Heart Rate (bpm) *</label>
+                                <div class="input-with-unit">
+                                    <input type="number" id="heartRate" name="heartRate" min="30" max="200" step="1" placeholder="72">
+                                    <span class="unit">bpm</span>
+                                </div>
+                                <div class="input-help">Normal: 60–100 bpm</div>
+                                <div class="value-status" id="hrStatus">Resting heart rate</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="respiratoryRate">Respiratory Rate *</label>
+                                <div class="input-with-unit">
+                                    <input type="number" id="respiratoryRate" name="respiratoryRate" min="8" max="40" step="1" placeholder="16">
+                                    <span class="unit">breaths/min</span>
+                                </div>
+                                <div class="input-help">Normal: 12–20 breaths/min</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Oxygen & Temperature -->
+                    <div class="form-section">
+                        <div class="section-title"><i class="fas fa-wind"></i> Oxygen & Temperature</div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="oxygenSaturation">Oxygen Saturation</label>
+                                <div class="input-with-unit">
+                                    <input type="number" id="oxygenSaturation" name="oxygenSaturation" min="80" max="100" step="0.1" placeholder="98.0">
+                                    <span class="unit">%</span>
+                                </div>
+                                <div class="input-help">Normal: 95–100%</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="temperature">Temperature</label>
+                                <div class="input-with-unit">
+                                    <input type="number" id="temperature" name="temperature" min="35" max="42" step="0.1" placeholder="36.6">
+                                    <span class="unit">°C</span>
+                                </div>
+                                <div class="input-help">Normal: 36.1–37.2°C</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Body Measurements -->
+                    <div class="form-section">
+                        <div class="section-title"><i class="fas fa-weight"></i> Body Measurements</div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="weight">Weight</label>
+                                <div class="input-with-unit">
+                                    <input type="number" id="weight" name="weight" min="20" max="200" step="0.1" placeholder="70.0">
+                                    <span class="unit">kg</span>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="height">Height</label>
+                                <div class="input-with-unit">
+                                    <input type="number" id="height" name="height" min="100" max="220" step="0.1" placeholder="170.0">
+                                    <span class="unit">cm</span>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Body Mass Index (BMI)</label>
+                                <div class="calculated-value">
+                                    <span id="bmiValue">--</span>
+                                </div>
+                                <div class="value-status" id="bmiStatus">Enter weight and height</div>
+                            </div>
+                        </div>
+                        <div class="bmi-classification">
+                            <div class="bmi-category underweight"><span>Underweight</span><span>&lt; 18.5</span></div>
+                            <div class="bmi-category normal"><span>Normal</span><span>18.5–24.9</span></div>
+                            <div class="bmi-category overweight"><span>Overweight</span><span>25–29.9</span></div>
+                            <div class="bmi-category obese"><span>Obese</span><span>≥ 30</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Additional Information -->
+                    <div class="form-section">
+                        <div class="section-title"><i class="fas fa-sticky-note"></i> Additional Information</div>
+                        <div class="form-group">
+                            <label for="painScale">Pain Scale (0–10)</label>
+                            <div class="pain-scale">
+                                <input type="range" id="painScale" name="painScale" min="0" max="10" step="1" value="0">
+                                <div class="pain-labels">
+                                    <span>0: No pain</span><span>5: Moderate</span><span>10: Worst</span>
+                                </div>
+                                <div class="pain-value">Current: <span id="painValue">0</span>/10</div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="consciousness">Consciousness Level</label>
+                            <select id="consciousness" name="consciousness">
+                                <option value="Alert">Alert</option>
+                                <option value="Voice">Responds to voice</option>
+                                <option value="Pain">Responds to pain</option>
+                                <option value="Unresponsive">Unresponsive</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="vitalsNotes">Clinical Notes</label>
+                            <textarea id="vitalsNotes" name="vitalsNotes" placeholder="Patient condition, symptoms, activity level, etc." rows="3"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="btn-secondary" id="resetForm"><i class="fas fa-redo"></i> Reset Form</button>
+                        <button type="submit" class="btn-primary" id="submitVitals"><i class="fas fa-save"></i> Save Vital Signs</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Tab 2: Vital History -->
+            <div id="history-tab" class="tab-content">
+                <div class="section-header">
+                    <h2>📋 Vital Signs History</h2>
+                    <div class="header-actions">
+                        <div class="filter-group">
+                            <select id="historyFilter" class="filter-select">
+                                <option value="all">All Records</option>
+                                <option value="today">Today</option>
+                                <option value="week">Last 7 Days</option>
+                                <option value="month">Last 30 Days</option>
+                                <option value="year">Last Year</option>
+                            </select>
+                            <button class="btn-export" id="exportHistory"><i class="fas fa-download"></i> Export</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="summary-cards">
+                    <div class="summary-card"><div class="summary-icon bp"><i class="fas fa-heart"></i></div><div class="summary-content"><div class="summary-value" id="avgBpSummary">--/--</div><div class="summary-label">Average BP</div></div></div>
+                    <div class="summary-card"><div class="summary-icon hr"><i class="fas fa-heartbeat"></i></div><div class="summary-content"><div class="summary-value" id="avgHrSummary">--</div><div class="summary-label">Avg Heart Rate</div></div></div>
+                    <div class="summary-card"><div class="summary-icon temp"><i class="fas fa-thermometer-half"></i></div><div class="summary-content"><div class="summary-value" id="avgTempSummary">--</div><div class="summary-label">Avg Temperature</div></div></div>
+                    <div class="summary-card"><div class="summary-icon weight"><i class="fas fa-weight"></i></div><div class="summary-content"><div class="summary-value" id="latestWeight">--</div><div class="summary-label">Latest Weight</div></div></div>
+                </div>
+
+                <div class="table-container">
+                    <div class="table-responsive">
+                        <table class="data-table" id="vitalsTable">
+                            <thead>
+                                <tr>
+                                    <th>Date & Time</th><th>Blood Pressure</th><th>Heart Rate</th>
+                                    <th>Temperature</th><th>SpO₂</th><th>Resp Rate</th>
+                                    <th>Weight</th><th>BMI</th><th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="vitalsTableBody">
+                                <tr><td colspan="9" class="loading-row"><i class="fas fa-spinner fa-spin"></i> Loading vital signs...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="pagination" id="vitalsPagination">
+                    <button class="page-btn prev" disabled><i class="fas fa-chevron-left"></i> Previous</button>
+                    <span class="page-info">Page <span id="currentPage">1</span> of <span id="totalPages">1</span></span>
+                    <button class="page-btn next">Next <i class="fas fa-chevron-right"></i></button>
+                </div>
+            </div>
+
+            <!-- Tab 3: Trend Analysis -->
+            <div id="analysis-tab" class="tab-content">
+                <div class="section-header">
+                    <h2>📊 Advanced Trend Analysis</h2>
+                    <div class="chart-controls">
+                        <div class="control-group">
+                            <label for="parameterSelect">Parameter:</label>
+                            <select id="parameterSelect" class="chart-select">
+                                <option value="bp">Blood Pressure</option>
+                                <option value="hr">Heart Rate</option>
+                                <option value="temp">Temperature</option>
+                                <option value="weight">Weight</option>
+                                <option value="bmi">BMI</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label for="timeRangeSelect">Time Range:</label>
+                            <select id="timeRangeSelect" class="chart-select">
+                                <option value="7">Last 7 Days</option>
+                                <option value="30" selected>Last 30 Days</option>
+                                <option value="90">Last 3 Months</option>
+                                <option value="365">Last Year</option>
+                                <option value="all">All Time</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="charts-grid">
+                    <div class="chart-container large">
+                        <div class="chart-header">
+                            <h3>📈 Parameter Trend <span style="font-size:0.75em;color:#888;font-weight:400;">(dashed lines = normal reference)</span></h3>
+                            <div class="chart-stats">
+                                <div class="stat"><span class="stat-label">Current:</span><span class="stat-value" id="currentValue">--</span></div>
+                                <div class="stat"><span class="stat-label">Average:</span><span class="stat-value" id="averageValue">--</span></div>
+                                <div class="stat"><span class="stat-label">Trend:</span><span class="stat-value" id="changeValue">--</span></div>
+                            </div>
+                        </div>
+                        <canvas id="trendChart" height="260"></canvas>
+                    </div>
+
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <h3>🔗 BP vs Heart Rate <span style="font-size:0.75em;color:#888;font-weight:400;">(colour = BP level)</span></h3>
+                        </div>
+                        <canvas id="distributionChart" height="200"></canvas>
+                    </div>
+
+                    <div class="chart-container">
+                        <div class="chart-header"><h3>🎯 Target Ranges</h3></div>
+                        <div class="targets-container">
+                            <div class="target-card">
+                                <div class="target-title">Blood Pressure</div>
+                                <div class="target-range">120/80 mmHg</div>
+                                <div class="target-status" id="bpTargetStatus">--</div>
+                            </div>
+                            <div class="target-card">
+                                <div class="target-title">Heart Rate</div>
+                                <div class="target-range">60–100 bpm</div>
+                                <div class="target-status" id="hrTargetStatus">--</div>
+                            </div>
+                            <div class="target-card">
+                                <div class="target-title">BMI</div>
+                                <div class="target-range">18.5–24.9</div>
+                                <div class="target-status" id="bmiTargetStatus">--</div>
+                            </div>
+                            <div class="target-card">
+                                <div class="target-title">Temperature</div>
+                                <div class="target-range">36.1–37.2°C</div>
+                                <div class="target-status" id="tempTargetStatus">--</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stats-container">
+                    <h3>📋 Statistical Summary</h3>
+                    <div class="stats-grid">
+                        <div class="stat-item"><div class="stat-label">Measurements Count</div><div class="stat-value" id="measurementsCount">0</div></div>
+                        <div class="stat-item"><div class="stat-label">Standard Deviation</div><div class="stat-value" id="stdDeviation">--</div></div>
+                        <div class="stat-item"><div class="stat-label">Coefficient of Variation</div><div class="stat-value" id="coefficientVariation">--%</div></div>
+                        <div class="stat-item"><div class="stat-label">Highest Recorded</div><div class="stat-value" id="highestValue">--</div></div>
+                        <div class="stat-item"><div class="stat-label">Lowest Recorded</div><div class="stat-value" id="lowestValue">--</div></div>
+                        <div class="stat-item"><div class="stat-label">Trend Direction</div><div class="stat-value" id="trendDirection">--</div></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 4: Clinical Tools -->
+            <div id="tools-tab" class="tab-content">
+                <div class="section-header">
+                    <h2>🛠️ Clinical Tools & Calculators</h2>
+                    <p class="section-subtitle">Useful tools for health assessment and monitoring</p>
+                </div>
+
+                <div class="tools-grid">
+                    <div class="tool-card">
+                        <div class="tool-header"><div class="tool-icon"><i class="fas fa-weight"></i></div><h3>BMI Calculator</h3></div>
+                        <div class="tool-content">
+                            <div class="form-group"><label>Weight (kg)</label><input type="number" id="bmiWeight" class="tool-input" min="20" max="200" step="0.1" placeholder="70.0"></div>
+                            <div class="form-group"><label>Height (cm)</label><input type="number" id="bmiHeight" class="tool-input" min="100" max="220" step="0.1" placeholder="170.0"></div>
+                            <button class="tool-btn" onclick="calculateToolBMI()">Calculate BMI</button>
+                            <div class="tool-result" id="bmiToolResult"><div class="result-value">--</div><div class="result-category">Enter weight and height</div></div>
+                        </div>
+                    </div>
+
+                    <div class="tool-card">
+                        <div class="tool-header"><div class="tool-icon"><i class="fas fa-heart"></i></div><h3>MAP Calculator</h3></div>
+                        <div class="tool-content">
+                            <div class="form-group"><label>Systolic BP</label><input type="number" id="mapSystolic" class="tool-input" min="50" max="300" step="1" placeholder="120"></div>
+                            <div class="form-group"><label>Diastolic BP</label><input type="number" id="mapDiastolic" class="tool-input" min="30" max="200" step="1" placeholder="80"></div>
+                            <button class="tool-btn" onclick="calculateToolMAP()">Calculate MAP</button>
+                            <div class="tool-result" id="mapToolResult"><div class="result-value">-- mmHg</div><div class="result-category">Normal: 70–100 mmHg</div></div>
+                        </div>
+                    </div>
+
+                    <!-- FIX 5: NEWS2 tool now includes Systolic BP, Heart Rate, Temperature -->
+                    <div class="tool-card">
+                        <div class="tool-header"><div class="tool-icon"><i class="fas fa-clipboard-check"></i></div><h3>NEWS2 Score</h3></div>
+                        <div class="tool-content">
+                            <div class="form-group"><label>Respiratory Rate (breaths/min)</label><input type="number" id="newsRespiratory" class="tool-input" min="8" max="40" step="1" placeholder="16"></div>
+                            <div class="form-group"><label>Oxygen Saturation (%)</label><input type="number" id="newsOxygen" class="tool-input" min="80" max="100" step="1" placeholder="98"></div>
+                            <div class="form-group"><label>Systolic BP (mmHg) <span style="color:#666;font-size:0.85em;">optional</span></label><input type="number" id="newsSystolic" class="tool-input" min="50" max="300" step="1" placeholder="120"></div>
+                            <div class="form-group"><label>Heart Rate (bpm) <span style="color:#666;font-size:0.85em;">optional</span></label><input type="number" id="newsHeartRate" class="tool-input" min="30" max="200" step="1" placeholder="72"></div>
+                            <div class="form-group"><label>Temperature (°C) <span style="color:#666;font-size:0.85em;">optional</span></label><input type="number" id="newsTemp" class="tool-input" min="35" max="42" step="0.1" placeholder="36.6"></div>
+                            <button class="tool-btn" onclick="calculateNEWS2()">Calculate Score</button>
+                            <div class="tool-result" id="newsToolResult"><div class="result-value">Score: --</div><div class="result-category">Low risk</div></div>
+                        </div>
+                    </div>
+
+                    <div class="tool-card">
+                        <div class="tool-header"><div class="tool-icon"><i class="fas fa-tint"></i></div><h3>Fluid Requirement</h3></div>
+                        <div class="tool-content">
+                            <div class="form-group"><label>Weight (kg)</label><input type="number" id="fluidWeight" class="tool-input" min="20" max="200" step="0.1" placeholder="70.0"></div>
+                            <div class="form-group"><label>Activity Level</label>
+                                <select id="fluidActivity" class="tool-select">
+                                    <option value="sedentary">Sedentary</option>
+                                    <option value="moderate" selected>Moderate</option>
+                                    <option value="active">Active</option>
+                                    <option value="very_active">Very Active</option>
+                                </select>
+                            </div>
+                            <button class="tool-btn" onclick="calculateFluidRequirement()">Calculate</button>
+                            <div class="tool-result" id="fluidToolResult"><div class="result-value">-- L/day</div><div class="result-category">Daily requirement</div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="guides-section">
+                    <h3>📚 Clinical Reference Guides</h3>
+                    <div class="guides-grid">
+                        <div class="guide-card">
+                            <h4>Blood Pressure Classification</h4>
+                            <table class="guide-table">
+                                <tr class="normal"><td>Normal</td><td>&lt; 120/80 mmHg</td></tr>
+                                <tr class="elevated"><td>Elevated</td><td>120–129/&lt;80 mmHg</td></tr>
+                                <tr class="hypertension1"><td>Stage 1 Hypertension</td><td>130–139/80–89 mmHg</td></tr>
+                                <tr class="hypertension2"><td>Stage 2 Hypertension</td><td>≥140/≥90 mmHg</td></tr>
+                                <tr class="hypertensive"><td>Hypertensive Crisis</td><td>&gt;180/&gt;120 mmHg</td></tr>
+                            </table>
+                        </div>
+                        <div class="guide-card">
+                            <h4>BMI Categories</h4>
+                            <table class="guide-table">
+                                <tr class="underweight"><td>Underweight</td><td>&lt; 18.5</td></tr>
+                                <tr class="normal"><td>Normal weight</td><td>18.5–24.9</td></tr>
+                                <tr class="overweight"><td>Overweight</td><td>25–29.9</td></tr>
+                                <tr class="obese1"><td>Obese Class I</td><td>30–34.9</td></tr>
+                                <tr class="obese2"><td>Obese Class II</td><td>35–39.9</td></tr>
+                                <tr class="obese3"><td>Obese Class III</td><td>≥ 40</td></tr>
+                            </table>
+                        </div>
+                        <div class="guide-card">
+                            <h4>NEWS2 Scoring System</h4>
+                            <table class="guide-table">
+                                <tr><td>Score 0–4</td><td>Low risk — Routine monitoring</td></tr>
+                                <tr><td>Score 5–6</td><td>Medium risk — Increased monitoring</td></tr>
+                                <tr><td>Score ≥7</td><td>High risk — Urgent medical review</td></tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 5: Quick Entry -->
+            <div id="quick-tab" class="tab-content">
+                <div class="section-header">
+                    <h2>⚡ Quick Vital Signs Entry</h2>
+                    <p class="section-subtitle">Rapid entry for frequent monitoring</p>
+                </div>
+
+                <div class="quick-entry-form">
+                    <!-- FIX 14: Added Resp. Rate field to quick entry -->
+                    <div class="quick-grid">
+                        <div class="quick-input-group"><label>Systolic</label><input type="number" id="quickSystolic" class="quick-input" min="50" max="300" step="1" placeholder="120"><span class="quick-unit">mmHg</span></div>
+                        <div class="quick-input-group"><label>Diastolic</label><input type="number" id="quickDiastolic" class="quick-input" min="30" max="200" step="1" placeholder="80"><span class="quick-unit">mmHg</span></div>
+                        <div class="quick-input-group"><label>Heart Rate</label><input type="number" id="quickHeartRate" class="quick-input" min="30" max="200" step="1" placeholder="72"><span class="quick-unit">bpm</span></div>
+                        <div class="quick-input-group"><label>Temperature</label><input type="number" id="quickTemperature" class="quick-input" min="35" max="42" step="0.1" placeholder="36.6"><span class="quick-unit">°C</span></div>
+                        <div class="quick-input-group"><label>Resp. Rate <span style="color:#888;font-size:0.85em;">(optional)</span></label><input type="number" id="quickRespRate" class="quick-input" min="8" max="40" step="1" placeholder="16"><span class="quick-unit">br/min</span></div>
+                    </div>
+                    <div class="quick-notes">
+                        <label for="quickNotes">Quick Notes</label>
+                        <input type="text" id="quickNotes" class="quick-text" placeholder="Feeling, symptoms, activity level...">
+                    </div>
+                    <div class="quick-actions">
+                        <button class="btn-secondary" id="clearQuickForm"><i class="fas fa-times"></i> Clear</button>
+                        <button class="btn-primary" id="saveQuickVitals"><i class="fas fa-bolt"></i> Save Quick Vitals</button>
+                    </div>
+                </div>
+
+                <div class="todays-vitals">
+                    <h3>📅 Today's Vital Signs</h3>
+                    <div class="todays-list" id="todaysVitalsList">
+                        <div class="empty-state"><i class="fas fa-clipboard-list"></i><p>No vital signs recorded today</p></div>
+                    </div>
+                </div>
+
+                <div class="quick-stats-section">
+                    <h3>📊 Quick Statistics</h3>
+                    <div class="stats-grid quick">
+                        <div class="stat-box"><div class="stat-title">Today's Average BP</div><div class="stat-value" id="todayAvgBp">--/--</div></div>
+                        <div class="stat-box"><div class="stat-title">Today's Records</div><div class="stat-value" id="todayRecordsCount">0</div></div>
+                        <div class="stat-box"><div class="stat-title">Last Recorded</div><div class="stat-value" id="lastRecordTime">--:--</div></div>
+                        <div class="stat-box"><div class="stat-title">Best Reading Today</div><div class="stat-value" id="bestReadingToday">--/--</div></div>
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- end tab-content-container -->
+
+        <footer class="main-footer">
+            <div class="footer-content">
+                <div class="footer-logo"><span class="logo-symbol">H</span><span class="logo-text">Healytica Record</span></div>
+                <div class="footer-links">
+                    <a href="#" class="footer-link">Privacy Policy</a>
+                    <a href="#" class="footer-link">Terms of Service</a>
+                    <a href="#" class="footer-link">Help Center</a>
+                </div>
+                <div class="footer-copyright">© 2024 Healytica Record. Secure • Private • Yours.</div>
+            </div>
+        </footer>
+    </div>
+
+    <div id="messageContainer"></div>
+
+    <script src="js/supabase.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/vital_signs.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async function () {
+            console.log('Vital Signs page — initialising...');
+
+            let user = null;
+            try {
+                user = await supabaseService.getCurrentUser();
+                if (!user) { window.location.href = 'index.html'; return; }
+            } catch (e) {
+                console.error('Auth error:', e);
+                window.location.href = 'index.html';
+                return;
+            }
+
+            window.appState = window.appState || {};
+            window.appState.currentUser = user;
+
+            const userName   = document.getElementById('userName');
+            const userAvatar = document.getElementById('userAvatar');
+            if (userName)   userName.textContent = user.email.split('@')[0];
+            if (userAvatar) {
+                userAvatar.textContent = user.email.substring(0, 2).toUpperCase();
+                let h = 0;
+                for (let i = 0; i < user.email.length; i++) h = user.email.charCodeAt(i) + ((h << 5) - h);
+                userAvatar.style.background = `hsl(${Math.abs(h) % 360}, 65%, 55%)`;
+            }
+
+            document.getElementById('logoutBtn')?.addEventListener('click', async () => {
+                if (confirm('Logout?')) {
+                    await supabaseService.signOut();
+                    window.location.href = 'index.html';
+                }
+            });
+            document.getElementById('menuToggle')?.addEventListener('click', () => {
+                document.getElementById('sidebar')?.classList.toggle('active');
+            });
+
+            if (typeof loadVitalSigns === 'function') {
+                await loadVitalSigns();
+            } else {
+                console.error('loadVitalSigns not found — check vital_signs.js loaded correctly');
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Appointments - Healytica Record</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/appointments.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- BUG FIX: Supabase loaded ONCE here, at the bottom of <body>, not in <head>.
+         The old code had it in <head> AND at the bottom — loading it twice caused
+         the auth session to initialise twice. Only load it once. -->
+    <style>
+        .loader {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: white;
+            z-index: 9999;
+        }
+        .spinner {
+            width: 50px; height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #1e3c72;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .loading-text { margin-top: 20px; color: #1e3c72; font-size: 1.1em; }
+
+        .message { padding: 15px; margin-bottom: 10px; border-radius: 8px; display: flex; align-items: center; animation: slideIn 0.3s ease; }
+        .message.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .message.error   { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .message.warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        .message.info    { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .message-icon { margin-right: 10px; font-size: 1.2em; }
+
+        .error-message  { color: #dc3545 !important; font-size: 0.85em !important; margin-top: 5px !important; }
+        .form-control.error { border-color: #dc3545 !important; }
+
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+        .status-scheduled .status-dot { background-color: #007bff; }
+        .status-completed .status-dot { background-color: #28a745; }
+        .status-cancelled .status-dot { background-color: #dc3545; }
+
+        /* Modal uses fixed positioning — keep it out of normal flow */
+        .modal {
+            position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 10000;
+        }
+
+        .calendar-day.today { background-color: #e3f2fd; border-color: #1e3c72; }
+        .has-appointment { width: 8px; height: 8px; background-color: #28a745; border-radius: 50%; display: inline-block; margin-right: 5px; }
+
+        .checkbox-group  { display: flex; flex-wrap: wrap; gap: 10px; }
+        .checkbox-row    { display: flex; gap: 15px; width: 100%; }
+        .checkbox-item   { display: flex; align-items: center; gap: 5px; cursor: pointer; }
+        .checkbox-item input[type="checkbox"] { cursor: pointer; }
+
+        .appointment-item { background: white; border-radius: 8px; padding: 20px; margin-bottom: 15px; border: 1px solid #e0e0e0; transition: all 0.3s ease; }
+        .appointment-item:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); transform: translateY(-2px); }
+        .appointment-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; }
+        .appointment-title  { flex: 1; }
+        .appointment-doctor { font-size: 1.2em; font-weight: 600; color: #1e3c72; margin-bottom: 5px; }
+        .appointment-reason { color: #666; font-size: 0.95em; }
+        .appointment-status { padding: 5px 12px; border-radius: 20px; font-size: 0.85em; font-weight: 500; }
+        .appointment-status.status-scheduled { background-color: #e3f2fd; color: #007bff; }
+        .appointment-status.status-completed { background-color: #d4edda; color: #155724; }
+        .appointment-status.status-cancelled { background-color: #f8d7da; color: #721c24; }
+        .appointment-details { display: flex; justify-content: space-between; align-items: center; }
+        .appointment-info   { flex: 1; }
+        .appointment-date, .appointment-location { display: flex; align-items: center; gap: 8px; color: #666; margin-bottom: 5px; font-size: 0.95em; }
+        .appointment-actions { display: flex; gap: 10px; }
+
+        .btn-action  { padding: 8px 15px; border: none; border-radius: 6px; font-size: 0.9em; cursor: pointer; display: flex; align-items: center; gap: 5px; transition: all 0.3s ease; }
+        .btn-complete { background-color: #28a745; color: white; }
+        .btn-complete:hover { background-color: #218838; }
+        .btn-cancel   { background-color: #dc3545; color: white; }
+        .btn-cancel:hover { background-color: #c82333; }
+        .btn-delete   { background-color: #6c757d; color: white; }
+        .btn-delete:hover { background-color: #5a6268; }
+
+        .calendar-container { background: white; border-radius: 8px; padding: 20px; margin-bottom: 20px; border: 1px solid #e0e0e0; }
+        .calendar-header    { display: grid; grid-template-columns: repeat(7,1fr); gap: 5px; margin-bottom: 10px; text-align: center; font-weight: 600; color: #1e3c72; }
+        .calendar-grid      { display: grid; grid-template-columns: repeat(7,1fr); gap: 5px; }
+        .calendar-day       { min-height: 80px; padding: 8px; border: 1px solid #e0e0e0; border-radius: 4px; display: flex; flex-direction: column; justify-content: space-between; }
+        .calendar-day.empty { background-color: #f8f9fa; border-color: #e9ecef; }
+        .day-number         { font-weight: 600; color: #333; }
+        .day-appointments   { font-size: 0.8em; color: #28a745; display: flex; align-items: center; gap: 3px; }
+
+        .doctor-card        { background: white; border-radius: 8px; padding: 20px; border: 1px solid #e0e0e0; transition: all 0.3s ease; }
+        .doctor-card:hover  { box-shadow: 0 4px 12px rgba(0,0,0,0.1); transform: translateY(-2px); }
+        .doctor-name        { font-size: 1.2em; font-weight: 600; color: #1e3c72; margin-bottom: 10px; }
+        .doctor-specialty, .doctor-clinic, .doctor-phone { display: flex; align-items: center; gap: 8px; color: #666; margin-bottom: 8px; font-size: 0.95em; }
+        .doctor-actions     { display: flex; gap: 10px; margin-top: 15px; }
+
+        .empty-state    { text-align: center; padding: 40px 20px; color: #666; }
+        .empty-state i  { font-size: 3em; color: #adb5bd; margin-bottom: 15px; }
+        .empty-state h3 { color: #495057; margin-bottom: 10px; }
+        .empty-state p  { margin-bottom: 20px; }
+        .btn-schedule   { padding: 12px 24px; background-color: #1e3c72; color: white; border: none; border-radius: 6px; font-size: 1em; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: all 0.3s ease; }
+        .btn-schedule:hover { background-color: #152a57; }
+
+        @media (max-width: 768px) {
+            .appointment-details  { flex-direction: column; align-items: flex-start; gap: 15px; }
+            .appointment-actions  { width: 100%; justify-content: flex-start; }
+            .calendar-day         { min-height: 60px; padding: 5px; }
+            .checkbox-row         { flex-direction: column; gap: 8px; }
+        }
+    </style>
+</head>
+<body class="dashboard-page">
+
+    <!-- Loading Spinner -->
+    <div id="loader" class="loader" style="display: none;">
+        <div class="spinner"></div>
+        <div class="loading-text">Loading your appointments...</div>
+    </div>
+
+    <!-- Sidebar Navigation -->
+    <div class="sidebar" id="sidebar">
+        <div class="user-info">
+            <div class="user-avatar" id="userAvatar">U</div>
+            <div class="user-details">
+                <div class="user-name" id="userName">Loading...</div>
+                <div class="user-status">
+                    <span class="status-dot" style="background-color: #28a745;"></span>
+                    <span>Online</span>
+                </div>
+            </div>
+        </div>
+
+        <button class="logout-btn" id="logoutBtn">
+            <i class="fas fa-sign-out-alt"></i>
+            <span>Logout</span>
+        </button>
+
+        <nav class="main-nav">
+            <div class="nav-section">
+                <div class="nav-header">📋 Navigation</div>
+                <a href="dashboard.html"    class="nav-link"><i class="fas fa-home"></i><span>Dashboard</span></a>
+                <a href="profile.html"      class="nav-link"><i class="fas fa-user"></i><span>My Profile</span></a>
+                <a href="medications.html"  class="nav-link"><i class="fas fa-pills"></i><span>Medications</span></a>
+                <a href="lab_results.html"  class="nav-link"><i class="fas fa-flask"></i><span>Lab Results</span></a>
+                <a href="vital_signs.html"  class="nav-link"><i class="fas fa-heartbeat"></i><span>Vital Signs</span></a>
+                <a href="appointments.html" class="nav-link active"><i class="fas fa-calendar-alt"></i><span>Appointments</span></a>
+                <a href="symptoms.html"     class="nav-link"><i class="fas fa-thermometer"></i><span>Symptoms Tracker</span></a>
+                <a href="analytics.html"    class="nav-link"><i class="fas fa-chart-bar"></i><span>Health Analytics</span></a>
+                <a href="settings.html"     class="nav-link"><i class="fas fa-cog"></i><span>Settings</span></a>
+            </div>
+        </nav>
+
+        <div class="quick-stats">
+            <div class="stat-item">
+                <div class="stat-value" id="todayAppointments">0</div>
+                <div class="stat-label">Today</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="upcomingAppointments">0</div>
+                <div class="stat-label">Upcoming</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile Menu Toggle -->
+    <button class="menu-toggle" id="menuToggle">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <header class="main-header">
+            <div class="header-left">
+                <h1>Appointment Management</h1>
+                <p class="header-subtitle">Schedule and track your medical appointments</p>
+            </div>
+            <div class="header-right">
+                <div class="date-display" id="currentDate">Loading...</div>
+                <button class="action-btn" id="quickScheduleBtn">
+                    <i class="fas fa-calendar-plus"></i>
+                    <span>Quick Schedule</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Tabs -->
+        <div class="appointments-tabs">
+            <button class="appointment-tab active" data-tab="schedule"><i class="fas fa-calendar-plus"></i><span>Schedule Appointment</span></button>
+            <button class="appointment-tab" data-tab="my-appointments"><i class="fas fa-calendar-check"></i><span>My Appointments</span></button>
+            <button class="appointment-tab" data-tab="calendar"><i class="fas fa-calendar-alt"></i><span>Calendar View</span></button>
+            <button class="appointment-tab" data-tab="doctors"><i class="fas fa-user-md"></i><span>Doctor Directory</span></button>
+            <button class="appointment-tab" data-tab="analytics"><i class="fas fa-chart-bar"></i><span>Appointment Analytics</span></button>
+        </div>
+
+        <div class="tab-content-container">
+
+            <!-- Tab 1: Schedule -->
+            <div class="tab-content active" id="schedule-tab">
+                <div class="section-header">
+                    <h2><i class="fas fa-calendar-plus"></i> Schedule New Appointment</h2>
+                </div>
+                <div class="appointment-form-container">
+                    <form id="scheduleAppointmentForm" class="multi-step-form">
+
+                        <!-- Step 1 -->
+                        <div class="form-step active" data-step="1">
+                            <div class="step-header">
+                                <div class="step-number">1</div>
+                                <div class="step-title">Appointment Details</div>
+                            </div>
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="specialty"><i class="fas fa-stethoscope"></i> Medical Specialty *</label>
+                                    <select id="specialty" required class="form-control">
+                                        <option value="">Select Specialty</option>
+                                        <option value="primary">👨‍⚕️ Primary Care</option>
+                                        <option value="cardiology">❤️ Cardiology</option>
+                                        <option value="endocrinology">🩸 Endocrinology</option>
+                                        <option value="neurology">🧠 Neurology</option>
+                                        <option value="pulmonology">🫁 Pulmonology</option>
+                                        <option value="gastroenterology">🩺 Gastroenterology</option>
+                                        <option value="orthopedics">🦴 Orthopedics</option>
+                                        <option value="ophthalmology">👁️ Ophthalmology</option>
+                                        <option value="ent">👂 ENT</option>
+                                        <option value="dermatology">🧴 Dermatology</option>
+                                        <option value="dentistry">🦷 Dentistry</option>
+                                        <option value="mental-health">🧘‍♂️ Mental Health</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="doctorType"><i class="fas fa-user-md"></i> Doctor Type *</label>
+                                    <select id="doctorType" required class="form-control">
+                                        <option value="">Select Doctor Type</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="doctorName"><i class="fas fa-user-md"></i> Doctor Name</label>
+                                    <input type="text" id="doctorName" class="form-control" placeholder="Dr. Smith, Dr. Johnson, etc.">
+                                </div>
+                                <div class="form-group">
+                                    <label for="appointmentDate"><i class="fas fa-calendar-day"></i> Appointment Date *</label>
+                                    <input type="date" id="appointmentDate" required class="form-control">
+                                </div>
+                                <div class="form-group">
+                                    <label for="appointmentTime"><i class="fas fa-clock"></i> Appointment Time *</label>
+                                    <input type="time" id="appointmentTime" required class="form-control">
+                                </div>
+                                <div class="form-group">
+                                    <label for="appointmentType"><i class="fas fa-calendar-check"></i> Appointment Type *</label>
+                                    <select id="appointmentType" required class="form-control">
+                                        <option value="consultation">Consultation</option>
+                                        <option value="follow-up">Follow-up</option>
+                                        <option value="procedure">Procedure</option>
+                                        <option value="surgery">Surgery</option>
+                                        <option value="test">Test/Scan</option>
+                                        <option value="vaccination">Vaccination</option>
+                                        <option value="emergency">Emergency</option>
+                                        <option value="checkup">Routine Checkup</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-actions">
+                                <button type="button" class="btn-next" data-next="2">Next: Location &amp; Contact <i class="fas fa-arrow-right"></i></button>
+                            </div>
+                        </div>
+
+                        <!-- Step 2 -->
+                        <div class="form-step" data-step="2">
+                            <div class="step-header">
+                                <div class="step-number">2</div>
+                                <div class="step-title">Location &amp; Contact</div>
+                            </div>
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="clinicName"><i class="fas fa-hospital"></i> Clinic/Hospital Name *</label>
+                                    <input type="text" id="clinicName" required class="form-control" placeholder="e.g., Mayo Clinic, City Hospital">
+                                </div>
+                                <div class="form-group full-width">
+                                    <label for="clinicAddress"><i class="fas fa-map-marker-alt"></i> Clinic Address</label>
+                                    <textarea id="clinicAddress" class="form-control" rows="3" placeholder="Full address with city and zip code"></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label for="clinicPhone"><i class="fas fa-phone"></i> Clinic Phone</label>
+                                    <input type="tel" id="clinicPhone" class="form-control" placeholder="(555) 123-4567">
+                                </div>
+                                <div class="form-group">
+                                    <label for="insuranceProvider"><i class="fas fa-shield-alt"></i> Insurance Provider</label>
+                                    <input type="text" id="insuranceProvider" class="form-control" placeholder="e.g., Blue Cross, Aetna, Medicare">
+                                </div>
+                                <div class="form-group">
+                                    <label for="insuranceId"><i class="fas fa-id-card"></i> Insurance ID</label>
+                                    <input type="text" id="insuranceId" class="form-control" placeholder="Policy/Member number">
+                                </div>
+                            </div>
+                            <div class="form-actions">
+                                <button type="button" class="btn-prev" data-prev="1"><i class="fas fa-arrow-left"></i> Back</button>
+                                <button type="button" class="btn-next" data-next="3">Next: Medical Details <i class="fas fa-arrow-right"></i></button>
+                            </div>
+                        </div>
+
+                        <!-- Step 3 -->
+                        <div class="form-step" data-step="3">
+                            <div class="step-header">
+                                <div class="step-number">3</div>
+                                <div class="step-title">Medical Details</div>
+                            </div>
+                            <div class="form-grid">
+                                <div class="form-group full-width">
+                                    <label for="reason"><i class="fas fa-clipboard-list"></i> Reason for Visit *</label>
+                                    <textarea id="reason" required class="form-control" rows="3" placeholder="Describe your symptoms, concerns, or purpose of visit"></textarea>
+                                </div>
+                                <div class="form-group full-width">
+                                    <label><i class="fas fa-thermometer-half"></i> Current Symptoms (select all that apply)</label>
+                                    <div class="checkbox-group">
+                                        <div class="checkbox-row">
+                                            <label class="checkbox-item"><input type="checkbox" name="symptoms" value="Fever"><span>Fever</span></label>
+                                            <label class="checkbox-item"><input type="checkbox" name="symptoms" value="Headache"><span>Headache</span></label>
+                                            <label class="checkbox-item"><input type="checkbox" name="symptoms" value="Chest Pain"><span>Chest Pain</span></label>
+                                            <label class="checkbox-item"><input type="checkbox" name="symptoms" value="Shortness of Breath"><span>Shortness of Breath</span></label>
+                                        </div>
+                                        <div class="checkbox-row">
+                                            <label class="checkbox-item"><input type="checkbox" name="symptoms" value="Fatigue"><span>Fatigue</span></label>
+                                            <label class="checkbox-item"><input type="checkbox" name="symptoms" value="Nausea/Vomiting"><span>Nausea/Vomiting</span></label>
+                                            <label class="checkbox-item"><input type="checkbox" name="symptoms" value="Abdominal Pain"><span>Abdominal Pain</span></label>
+                                            <label class="checkbox-item"><input type="checkbox" name="symptoms" value="Joint Pain"><span>Joint Pain</span></label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="urgency"><i class="fas fa-exclamation-triangle"></i> Urgency Level</label>
+                                    <select id="urgency" class="form-control">
+                                        <option value="routine">Routine</option>
+                                        <option value="soon">Soon</option>
+                                        <option value="urgent">Urgent</option>
+                                        <option value="emergency">Emergency</option>
+                                    </select>
+                                </div>
+                                <div class="form-group full-width">
+                                    <label for="preparation"><i class="fas fa-list-check"></i> Preparation Instructions</label>
+                                    <textarea id="preparation" class="form-control" rows="2" placeholder="Fasting required, bring medications list, previous test results, etc."></textarea>
+                                </div>
+                                <div class="form-group full-width">
+                                    <label for="questions"><i class="fas fa-question-circle"></i> Questions for Doctor</label>
+                                    <textarea id="questions" class="form-control" rows="2" placeholder="List questions you want to ask during the appointment"></textarea>
+                                </div>
+                                <div class="form-group full-width">
+                                    <label for="additionalNotes"><i class="fas fa-notes-medical"></i> Additional Notes</label>
+                                    <textarea id="additionalNotes" class="form-control" rows="2" placeholder="Special requests, accessibility needs, etc."></textarea>
+                                </div>
+                            </div>
+                            <div class="form-actions">
+                                <button type="button" class="btn-prev" data-prev="2"><i class="fas fa-arrow-left"></i> Back</button>
+                                <button type="submit" class="btn-submit"><i class="fas fa-calendar-check"></i> Schedule Appointment</button>
+                            </div>
+                        </div>
+
+                    </form>
+                </div>
+            </div>
+
+            <!-- Tab 2: My Appointments -->
+            <div class="tab-content" id="my-appointments-tab">
+                <div class="section-header">
+                    <h2><i class="fas fa-calendar-check"></i> My Appointments</h2>
+                    <div class="section-actions">
+                        <div class="filter-controls">
+                            <select id="appointmentFilter" class="filter-select">
+                                <option value="all">All Appointments</option>
+                                <option value="upcoming">Upcoming</option>
+                                <option value="past">Past</option>
+                                <option value="today">Today</option>
+                                <option value="scheduled">Scheduled</option>
+                                <option value="completed">Completed</option>
+                                <option value="cancelled">Cancelled</option>
+                            </select>
+                            <input type="text" id="appointmentSearch" class="search-input" placeholder="Search appointments...">
+                        </div>
+                    </div>
+                </div>
+                <div class="appointment-stats">
+                    <div class="stat-card"><div class="stat-icon"><i class="fas fa-calendar-alt"></i></div><div class="stat-content"><div class="stat-value" id="totalAppointments">0</div><div class="stat-label">Total Appointments</div></div></div>
+                    <div class="stat-card"><div class="stat-icon"><i class="fas fa-calendar-check"></i></div><div class="stat-content"><div class="stat-value" id="upcomingCount">0</div><div class="stat-label">Upcoming</div></div></div>
+                    <div class="stat-card"><div class="stat-icon"><i class="fas fa-calendar-day"></i></div><div class="stat-content"><div class="stat-value" id="todayCount">0</div><div class="stat-label">Today</div></div></div>
+                    <div class="stat-card"><div class="stat-icon"><i class="fas fa-history"></i></div><div class="stat-content"><div class="stat-value" id="pastCount">0</div><div class="stat-label">Past</div></div></div>
+                </div>
+                <div class="appointments-list-container">
+                    <div id="appointmentsList" class="appointments-list">
+                        <div class="empty-state">
+                            <i class="fas fa-calendar-times"></i>
+                            <h3>No Appointments Found</h3>
+                            <p>Schedule your first appointment to get started!</p>
+                            <button class="btn-schedule" id="emptyScheduleBtn">
+                                <i class="fas fa-calendar-plus"></i> Schedule Appointment
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 3: Calendar View -->
+            <div class="tab-content" id="calendar-tab">
+                <div class="section-header">
+                    <h2><i class="fas fa-calendar-alt"></i> Calendar View</h2>
+                    <div class="section-actions">
+                        <div class="calendar-controls">
+                            <button id="prevMonth" class="calendar-nav"><i class="fas fa-chevron-left"></i></button>
+                            <div class="current-month" id="currentMonth"></div>
+                            <button id="nextMonth" class="calendar-nav"><i class="fas fa-chevron-right"></i></button>
+                            <button id="todayBtn" class="btn-today"><i class="fas fa-calendar-day"></i> Today</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="calendar-container">
+                    <div class="calendar-header">
+                        <div class="day-header">Mon</div><div class="day-header">Tue</div><div class="day-header">Wed</div>
+                        <div class="day-header">Thu</div><div class="day-header">Fri</div><div class="day-header">Sat</div><div class="day-header">Sun</div>
+                    </div>
+                    <div class="calendar-grid" id="calendarGrid"></div>
+                </div>
+                <div class="month-appointments">
+                    <h3><i class="fas fa-calendar-check"></i> Appointments This Month</h3>
+                    <div id="monthAppointmentsList" class="appointments-list-mini">
+                        <div class="empty-state-mini"><i class="fas fa-calendar-times"></i><p>No appointments scheduled this month</p></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 4: Doctor Directory -->
+            <div class="tab-content" id="doctors-tab">
+                <div class="section-header">
+                    <h2><i class="fas fa-user-md"></i> Doctor &amp; Clinic Directory</h2>
+                    <div class="section-actions">
+                        <button class="btn-add-doctor" id="addDoctorBtn"><i class="fas fa-user-plus"></i> Add Doctor</button>
+                    </div>
+                </div>
+                <div class="doctor-directory">
+                    <div class="directory-section">
+                        <h3><i class="fas fa-save"></i> Saved Healthcare Providers</h3>
+                        <div id="savedDoctors" class="doctors-grid">
+                            <div class="empty-state">
+                                <i class="fas fa-user-md"></i>
+                                <h3>No Doctors Saved</h3>
+                                <p>Add your healthcare providers to quickly schedule appointments.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="directory-section">
+                        <h3><i class="fas fa-search"></i> Find a Doctor</h3>
+                        <div class="find-doctor-container">
+                            <div class="search-box">
+                                <i class="fas fa-search"></i>
+                                <input type="text" id="doctorSearch" placeholder="Search for doctors or specialties...">
+                                <button class="search-btn" id="searchDoctorBtn">Search</button>
+                            </div>
+                            <div class="search-tips">
+                                <h4><i class="fas fa-lightbulb"></i> Tips for finding the right doctor:</h4>
+                                <ul>
+                                    <li>Check insurance network coverage</li>
+                                    <li>Read patient reviews and ratings</li>
+                                    <li>Consider location and availability</li>
+                                    <li>Verify board certification</li>
+                                    <li>Schedule consultation visits</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 5: Analytics -->
+            <div class="tab-content" id="analytics-tab">
+                <div class="section-header">
+                    <h2><i class="fas fa-chart-bar"></i> Appointment Analytics</h2>
+                </div>
+                <div class="analytics-overview">
+                    <div class="analytics-card">
+                        <div class="analytics-header"><i class="fas fa-chart-line"></i><h3>Appointment Frequency</h3></div>
+                        <div class="analytics-content"><canvas id="frequencyChart" height="250"></canvas></div>
+                    </div>
+                    <div class="analytics-card">
+                        <div class="analytics-header"><i class="fas fa-user-md"></i><h3>Doctor Distribution</h3></div>
+                        <div class="analytics-content"><canvas id="doctorChart" height="250"></canvas></div>
+                    </div>
+                    <div class="analytics-card">
+                        <div class="analytics-header"><i class="fas fa-chart-pie"></i><h3>Status Overview</h3></div>
+                        <div class="analytics-content">
+                            <div class="status-stats">
+                                <div class="status-item scheduled">
+                                    <div class="status-dot" style="background-color:#007bff;"></div>
+                                    <div class="status-info"><div class="status-label">Scheduled</div><div class="status-value" id="scheduledCount">0</div></div>
+                                </div>
+                                <div class="status-item completed">
+                                    <div class="status-dot" style="background-color:#28a745;"></div>
+                                    <div class="status-info"><div class="status-label">Completed</div><div class="status-value" id="completedCount">0</div></div>
+                                </div>
+                                <div class="status-item cancelled">
+                                    <div class="status-dot" style="background-color:#dc3545;"></div>
+                                    <div class="status-info"><div class="status-label">Cancelled</div><div class="status-value" id="cancelledCount">0</div></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="health-maintenance">
+                    <div class="maintenance-card">
+                        <div class="maintenance-header"><i class="fas fa-calendar-check"></i><h3>Upcoming Appointments</h3></div>
+                        <div id="upcomingList" class="maintenance-content">
+                            <div class="empty-state-mini"><i class="fas fa-calendar-times"></i><p>No upcoming appointments</p></div>
+                        </div>
+                    </div>
+                    <div class="maintenance-card">
+                        <div class="maintenance-header"><i class="fas fa-stethoscope"></i><h3>Health Maintenance</h3></div>
+                        <div class="maintenance-content">
+                            <h4>Recommended Checkups:</h4>
+                            <ul class="checkup-list">
+                                <li><i class="fas fa-user-md"></i><div><strong>Annual physical</strong><span>Due yearly</span></div></li>
+                                <li><i class="fas fa-tooth"></i><div><strong>Dental cleaning</strong><span>Every 6 months</span></div></li>
+                                <li><i class="fas fa-eye"></i><div><strong>Eye exam</strong><span>Every 1–2 years</span></div></li>
+                                <li><i class="fas fa-heartbeat"></i><div><strong>Specialist follow-ups</strong><span>As needed</span></div></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- /tab-content-container -->
+
+        <footer class="main-footer">
+            <div class="footer-content">
+                <div class="footer-logo"><span class="logo-symbol">H</span><span class="logo-text">Healytica Record</span></div>
+                <div class="footer-links">
+                    <a href="#" class="footer-link">Privacy Policy</a>
+                    <a href="#" class="footer-link">Terms of Service</a>
+                    <a href="#" class="footer-link">Help Center</a>
+                </div>
+                <div class="footer-copyright">© 2025 Healytica Record. Secure • Private • Yours.</div>
+            </div>
+        </footer>
+    </div><!-- /main-content -->
+
+    <!-- Message Container -->
+    <div id="messageContainer" style="position:fixed;top:20px;right:20px;z-index:10000;max-width:400px;"></div>
+
+    <!--
+        BUG FIX: Supabase loaded ONCE here (removed the duplicate in <head>).
+        Chart.js loaded after Supabase.
+        appointments.js loaded last — it depends on both libraries being present.
+        NO inline <script> block below — all logic lives in appointments.js.
+    -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="js/appointments.js"></script>
+
+</body>
+</html>

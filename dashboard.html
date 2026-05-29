@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Healytica Record</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js for graphs -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Load Supabase FIRST -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="dashboard-page">
+    
+    <!-- Loading Spinner -->
+    <div id="loader" class="loader">
+        <div class="spinner"></div>
+        <div class="loading-text">Loading your health data...</div>
+    </div>
+
+    <!-- Sidebar Navigation -->
+    <div class="sidebar" id="sidebar">
+        <!-- User Info -->
+        <div class="user-info">
+            <div class="user-avatar" id="userAvatar">
+                <!-- Initials will be added by JavaScript -->
+            </div>
+            <div class="user-details">
+                <div class="user-name" id="userName">Loading...</div>
+                <div class="user-status">
+                    <span class="status-dot"></span>
+                    <span>Online</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Logout Button -->
+        <button class="logout-btn" id="logoutBtn">
+            <i class="fas fa-sign-out-alt"></i>
+            <span>Logout</span>
+        </button>
+
+        <!-- Navigation Menu -->
+        <nav class="main-nav">
+            <div class="nav-section">
+                <div class="nav-header">📋 Navigation</div>
+                <a href="dashboard.html" class="nav-link active">
+                    <i class="fas fa-home"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="profile.html" class="nav-link">
+                    <i class="fas fa-user"></i>
+                    <span>My Profile</span>
+                </a>
+                <a href="medications.html" class="nav-link">
+                    <i class="fas fa-pills"></i>
+                    <span>Medications</span>
+                </a>
+                <a href="lab_results.html" class="nav-link">
+                    <i class="fas fa-flask"></i>
+                    <span>Lab Results</span>
+                </a>
+                <a href="vital_signs.html" class="nav-link">
+                    <i class="fas fa-heartbeat"></i>
+                    <span>Vital Signs</span>
+                </a>
+                <a href="appointments.html" class="nav-link">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>Appointments</span>
+                </a>
+                <a href="symptoms.html" class="nav-link">
+                    <i class="fas fa-thermometer"></i>
+                    <span>Symptoms Tracker</span>
+                </a>
+                <a href="analytics.html" class="nav-link">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>Health Analytics</span>
+                </a>
+                <a href="settings.html" class="nav-link">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </a>
+            </div>
+        </nav>
+
+        <!-- Quick Stats -->
+        <div class="quick-stats">
+            <div class="stat-item">
+                <div class="stat-value" id="activeMedsCount">0</div>
+                <div class="stat-label">Active Meds</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="upcomingAptsCount">0</div>
+                <div class="stat-label">Appointments</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="healthScore">--</div>
+                <div class="stat-label">Health Score</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile Menu Toggle -->
+    <button class="menu-toggle" id="menuToggle">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Header -->
+        <header class="main-header">
+            <div class="header-left">
+                <h1>Health Intelligence Dashboard</h1>
+                <p class="header-subtitle">Comprehensive Patient Health Overview</p>
+            </div>
+            <div class="header-right">
+                <div class="date-display" id="currentDate">Loading...</div>
+                <button class="refresh-btn" id="refreshBtn">
+                    <i class="fas fa-sync-alt"></i>
+                    <span>Refresh</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Welcome Section -->
+        <div class="welcome-section" id="welcomeSection">
+            <div class="welcome-message">
+                <h2 id="greetingMessage">Welcome back!</h2>
+                <p id="healthTip" class="health-tip">Loading health tips...</p>
+            </div>
+            <div class="welcome-actions">
+                <button class="action-btn" id="quickMedBtn">
+                    <i class="fas fa-plus"></i>
+                    <span>Add Medication</span>
+                </button>
+                <button class="action-btn" id="quickVitalBtn">
+                    <i class="fas fa-heartbeat"></i>
+                    <span>Log Vitals</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Dashboard Content -->
+        <div class="dashboard-content">
+            <!-- Row 1: Key Health Indicators -->
+            <div class="row">
+                <div class="section-header">
+                    <h2>🎯 Key Health Indicators</h2>
+                    <div class="section-actions">
+                        <button class="filter-btn" id="dateFilterBtn">
+                            <i class="fas fa-calendar"></i>
+                            <span id="filterDateRange">Last 30 days</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="cards-container">
+                    <!-- Blood Pressure Card -->
+                    <div class="metric-card bp-card">
+                        <div class="metric-header">
+                            <div class="metric-icon"><i class="fas fa-heart"></i></div>
+                            <div class="metric-title">Blood Pressure</div>
+                            <div class="metric-trend" id="bpTrend">→</div>
+                        </div>
+                        <div class="metric-value" id="bpValue">--/--</div>
+                        <div class="metric-status" id="bpStatus">No data</div>
+                        <div class="metric-detail">Last reading: <span id="bpLastDate">--</span></div>
+                        <canvas class="mini-chart" id="bpChart"></canvas>
+                    </div>
+
+                    <!-- Heart Rate Card -->
+                    <div class="metric-card hr-card">
+                        <div class="metric-header">
+                            <div class="metric-icon"><i class="fas fa-heartbeat"></i></div>
+                            <div class="metric-title">Heart Rate</div>
+                            <div class="metric-trend" id="hrTrend">→</div>
+                        </div>
+                        <div class="metric-value" id="hrValue">--</div>
+                        <div class="metric-status" id="hrStatus">No data</div>
+                        <div class="metric-detail">Resting rate</div>
+                        <canvas class="mini-chart" id="hrChart"></canvas>
+                    </div>
+
+                    <!-- Glucose Card -->
+                    <div class="metric-card glucose-card">
+                        <div class="metric-header">
+                            <div class="metric-icon"><i class="fas fa-tint"></i></div>
+                            <div class="metric-title">Glucose</div>
+                            <div class="metric-trend" id="glucoseTrend">→</div>
+                        </div>
+                        <div class="metric-value" id="glucoseValue">--</div>
+                        <div class="metric-status" id="glucoseStatus">No data</div>
+                        <div class="metric-detail">Fasting blood sugar</div>
+                        <canvas class="mini-chart" id="glucoseChart"></canvas>
+                    </div>
+
+                    <!-- BMI Card -->
+                    <div class="metric-card bmi-card">
+                        <div class="metric-header">
+                            <div class="metric-icon"><i class="fas fa-weight"></i></div>
+                            <div class="metric-title">BMI</div>
+                            <div class="metric-trend" id="bmiTrend">→</div>
+                        </div>
+                        <div class="metric-value" id="bmiValue">--</div>
+                        <div class="metric-status" id="bmiStatus">No data</div>
+                        <div class="metric-detail">Body Mass Index</div>
+                        <canvas class="mini-chart" id="bmiChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Row 2: Charts & Trends -->
+            <div class="row">
+                <div class="section-header">
+                    <h2>📈 Health Trends & Patterns</h2>
+                    <div class="chart-controls">
+                        <div class="chart-tabs">
+                            <button class="chart-tab active" data-chart="vitals">Vital Signs</button>
+                            <button class="chart-tab" data-chart="labs">Lab Results</button>
+                            <button class="chart-tab" data-chart="medications">Medications</button>
+                            <button class="chart-tab" data-chart="overview">Overview</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="charts-container">
+                    <div class="chart-main">
+                        <div class="chart-container">
+                            <canvas id="mainChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-sidebar">
+                        <div class="side-stat">
+                            <div class="side-stat-label">Average BP (all readings)</div>
+                            <div class="side-stat-value" id="avgBpValue">--/--</div>
+                        </div>
+                        <div class="side-stat">
+                            <div class="side-stat-label">Glucose Control</div>
+                            <div class="side-stat-value" id="glucoseControl">--</div>
+                        </div>
+                        <div class="side-stat">
+                            <div class="side-stat-label">Active Medications</div>
+                            <div class="side-stat-value" id="adherenceRate">--</div>
+                        </div>
+                        <div class="side-stat">
+                            <div class="side-stat-label">Symptoms (7 days)</div>
+                            <div class="side-stat-value" id="recentSymptoms">0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Row 3: Quick Actions & Recent Activity -->
+            <div class="row" style="display:flex; gap:30px; align-items:flex-start;">
+                <div style="flex:1; min-width:0;">
+                    <div class="section-header">
+                        <h2>⚡ Quick Actions</h2>
+                    </div>
+                    <div class="quick-actions-grid">
+                        <button class="quick-action" id="actionMedication">
+                            <div class="action-icon"><i class="fas fa-pills"></i></div>
+                            <div class="action-text">
+                                <div class="action-title">Add Medication</div>
+                                <div class="action-desc">Record new prescription</div>
+                            </div>
+                        </button>
+                        <button class="quick-action" id="actionLab">
+                            <div class="action-icon"><i class="fas fa-flask"></i></div>
+                            <div class="action-text">
+                                <div class="action-title">Record Lab</div>
+                                <div class="action-desc">Add test results</div>
+                            </div>
+                        </button>
+                        <button class="quick-action" id="actionVital">
+                            <div class="action-icon"><i class="fas fa-heartbeat"></i></div>
+                            <div class="action-text">
+                                <div class="action-title">Log Vitals</div>
+                                <div class="action-desc">Record measurements</div>
+                            </div>
+                        </button>
+                        <button class="quick-action" id="actionSymptom">
+                            <div class="action-icon"><i class="fas fa-thermometer"></i></div>
+                            <div class="action-text">
+                                <div class="action-title">Track Symptom</div>
+                                <div class="action-desc">Record symptoms</div>
+                            </div>
+                        </button>
+                        <button class="quick-action" id="actionAppointment">
+                            <div class="action-icon"><i class="fas fa-calendar-plus"></i></div>
+                            <div class="action-text">
+                                <div class="action-title">Schedule Visit</div>
+                                <div class="action-desc">Book appointment</div>
+                            </div>
+                        </button>
+                        <button class="quick-action" id="actionExport">
+                            <div class="action-icon"><i class="fas fa-file-export"></i></div>
+                            <div class="action-text">
+                                <div class="action-title">Export Report</div>
+                                <div class="action-desc">Download health data</div>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <div style="flex:1; min-width:0;">
+                    <div class="section-header">
+                        <h2>📋 Recent Activity</h2>
+                        <button class="view-all-btn" id="viewAllActivity">View All</button>
+                    </div>
+                    <div class="activity-list" id="activityList">
+                        <div class="activity-item">
+                            <div class="activity-icon"><i class="fas fa-spinner fa-spin"></i></div>
+                            <div class="activity-content">
+                                <div class="activity-title">Loading activities...</div>
+                                <div class="activity-time">Just now</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Row 4: Health Insights -->
+            <div class="row">
+                <div class="section-header">
+                    <h2>🔍 Health Insights & Recommendations</h2>
+                </div>
+                <div class="insights-container">
+                    <div class="insight-card analysis-card">
+                        <div class="insight-header">
+                            <i class="fas fa-chart-line"></i>
+                            <h3>Data Analysis</h3>
+                        </div>
+                        <div class="insight-content" id="analysisInsights">
+                            <p>Loading analysis...</p>
+                        </div>
+                    </div>
+                    <div class="insight-card recommendation-card">
+                        <div class="insight-header">
+                            <i class="fas fa-lightbulb"></i>
+                            <h3>Recommendations</h3>
+                        </div>
+                        <div class="insight-content" id="recommendationInsights">
+                            <p>Loading recommendations...</p>
+                        </div>
+                    </div>
+                    <!-- AI card is injected here by dashboard.js -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="main-footer">
+            <div class="footer-content">
+                <div class="footer-logo">
+                    <span class="logo-symbol">H</span>
+                    <span class="logo-text">Healytica Record</span>
+                </div>
+                <div class="footer-links">
+                    <a href="#" class="footer-link" id="privacyPolicyLink">Privacy Policy</a>
+                    <a href="#" class="footer-link" id="termsOfServiceLink">Terms of Service</a>
+                    <a href="#" class="footer-link" id="helpCenterLink">Help Center</a>
+                </div>
+                <div class="footer-copyright">
+                    © 2025 Healytica Record. Secure • Private • Yours.
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Message Container -->
+    <div id="messageContainer" class="message-container"></div>
+
+    <!-- Scripts - CORRECT ORDER -->
+    <script src="js/supabase.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/dashboard.js"></script>
+
+    <!-- FIX: Minimal inline script — only sets date and checks auth.
+         All listener setup and loader hiding is handled by dashboard.js -->
+    <script>
+        document.addEventListener('DOMContentLoaded', async function() {
+            console.log('Dashboard HTML inline init...');
+
+            // Set current date display
+            const currentDate = document.getElementById('currentDate');
+            if (currentDate) {
+                const now = new Date();
+                currentDate.textContent = now.toLocaleDateString('en-US', {
+                    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+                });
+            }
+
+            // Auth check only — initDashboard is called by dashboard.js DOMContentLoaded
+            // This block just handles the case where supabaseService isn't ready
+            try {
+                if (typeof supabaseService === 'undefined') {
+                    console.error('supabaseService not loaded');
+                    return;
+                }
+                const user = await supabaseService.getCurrentUser();
+                if (!user) {
+                    window.location.href = 'index.html';
+                }
+            } catch (error) {
+                console.error('Auth check error:', error);
+            }
+        });
+    </script>
+</body>
+</html>
